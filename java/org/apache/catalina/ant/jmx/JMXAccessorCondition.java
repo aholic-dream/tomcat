@@ -19,6 +19,7 @@ package org.apache.catalina.ant.jmx;
 import org.apache.tools.ant.BuildException;
 
 /**
+ *
  * <b>Definition</b>:
  * <pre>
  *   &lt;path id="catalina_ant"&gt;

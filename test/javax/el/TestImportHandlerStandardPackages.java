@@ -62,7 +62,7 @@ public class TestImportHandlerStandardPackages {
             // every test run. The intention is that it will catch new classes
             // when the tests are run on a newer JRE.
             // The latest version of the JRE where this test is known to pass is
-            // - OpenJDK 14 EA 27
+            // Java 11, Early Access 21
             if (!JreCompat.isJre9Available()) {
                 return;
             }
@@ -94,6 +94,8 @@ public class TestImportHandlerStandardPackages {
             Enumeration<URL> resources = cl.getResources(path);
             while (resources.hasMoreElements()) {
                 URL resource = resources.nextElement();
+                // Debugging for Gump failure
+                System.out.println("Scanning: [" + resource + "]");
                 URI uri = resource.toURI();
                 // Gump includes some JARs on classpath - skip them
                 if (!"file".equals(uri.getScheme())) {

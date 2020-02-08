@@ -34,7 +34,7 @@ public class TestPerMessageDeflate {
      * https://bz.apache.org/bugzilla/show_bug.cgi?id=61491
      */
     @Test
-    public void testSendEmptyMessagePartWithContextTakeover() throws IOException {
+    public void testSendEmptyMessagePartWithContextTakeover() {
 
         // Set up the extension using defaults
         List<Parameter> parameters = Collections.emptyList();

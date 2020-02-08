@@ -398,16 +398,14 @@ public interface Context extends Container, ContextBind {
     /**
      * Obtain the document root for this Context.
      *
-     * @return An absolute pathname or a relative (to the Host's appBase)
-     *         pathname.
+     * @return An absolute pathname, a relative pathname, or a URL.
      */
     public String getDocBase();
 
 
     /**
-     * Set the document root for this Context. This can be either an absolute
-     * pathname or a relative pathname. Relative pathnames are relative to the
-     * containing Host's appBase.
+     * Set the document root for this Context.  This can be an absolute
+     * pathname, a relative pathname, or a URL.
      *
      * @param docBase The new document root
      */
@@ -931,14 +929,6 @@ public interface Context extends Container, ContextBind {
 
 
     /**
-     * Factory method to create and return a new InstanceManager
-     * instance. This can be used for framework integration or easier
-     * configuration with custom Context implementations.
-     * @return the instance manager
-     */
-    public InstanceManager createInstanceManager();
-
-    /**
      * Factory method to create and return a new Wrapper instance, of
      * the Java implementation class appropriate for this Context
      * implementation.  The constructor of the instantiated Wrapper
@@ -1393,7 +1383,6 @@ public interface Context extends Container, ContextBind {
      */
     public JspConfigDescriptor getJspConfigDescriptor();
 
-
     /**
      * Set the JspConfigDescriptor for this context.
      * A null value indicates there is not JSP configuration.
@@ -1401,7 +1390,6 @@ public interface Context extends Container, ContextBind {
      * @param descriptor the new JSP configuration
      */
     public void setJspConfigDescriptor(JspConfigDescriptor descriptor);
-
 
     /**
      * Add a ServletContainerInitializer instance to this web application.
@@ -1412,7 +1400,6 @@ public interface Context extends Container, ContextBind {
      */
     public void addServletContainerInitializer(
             ServletContainerInitializer sci, Set<Class<?>> classes);
-
 
     /**
      * Is this Context paused whilst it is reloaded?
@@ -1428,7 +1415,6 @@ public interface Context extends Container, ContextBind {
      * @return <code>true</code> for a legacy Servlet 2.2 webapp
      */
     boolean isServlet22();
-
 
     /**
      * Notification that Servlet security has been dynamically set in a
@@ -1485,7 +1471,7 @@ public interface Context extends Container, ContextBind {
     /**
      * @return The version of this web application, used to differentiate
      * different versions of the same web application when using parallel
-     * deployment. If not specified, defaults to the empty string.
+     * deployment.
      */
     public String getWebappVersion();
 
@@ -1877,32 +1863,4 @@ public interface Context extends Container, ContextBind {
      *         otherwise <code>false</code>
      */
     public boolean getAllowMultipleLeadingForwardSlashInPath();
-
-
-    public void incrementInProgressAsyncCount();
-
-
-    public void decrementInProgressAsyncCount();
-
-
-    /**
-     * Configure whether Tomcat will attempt to create an upload target used by
-     * this web application if it does not exist when the web application
-     * attempts to use it.
-     *
-     * @param createUploadTargets {@code true} if Tomcat should attempt to
-     *          create the upload target, otherwise {@code false}
-     */
-    public void setCreateUploadTargets(boolean createUploadTargets);
-
-
-    /**
-     * Will Tomcat attempt to create an upload target used by this web
-     * application if it does not exist when the web application attempts to use
-     * it?
-     *
-     * @return {@code true} if Tomcat will attempt to create an upload target
-     *         otherwise {@code false}
-     */
-    public boolean getCreateUploadTargets();
 }

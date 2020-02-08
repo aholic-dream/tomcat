@@ -31,11 +31,8 @@ import org.junit.Test;
 import org.apache.catalina.connector.Connector;
 import org.apache.coyote.http2.HpackEncoder.State;
 import org.apache.tomcat.util.http.MimeHeaders;
-import org.apache.tomcat.util.res.StringManager;
 
 public class TestHttp2Limits extends Http2TestBase {
-
-    private static final StringManager sm = StringManager.getManager(TestHttp2Limits.class);
 
     @Test
     public void testHeaderLimits1x128() throws Exception {
@@ -196,6 +193,8 @@ public class TestHttp2Limits extends Http2TestBase {
 
         enableHttp2();
 
+        Http2Protocol http2Protocol =
+                (Http2Protocol) getTomcatInstance().getConnector().findUpgradeProtocols()[0];
         http2Protocol.setMaxHeaderCount(maxHeaderCount);
         http2Protocol.setMaxHeaderSize(maxHeaderSize);
 
@@ -250,12 +249,6 @@ public class TestHttp2Limits extends Http2TestBase {
             break;
         }
         case CONNECTION_RESET: {
-            // This message uses i18n and needs to be used in a regular
-            // expression (since we don't know the connection ID). Generate the
-            // string as a regular expression and then replace '[' and ']' with
-            // the escaped values.
-            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\d++", "3");
-            limitMessage = limitMessage.replace("[", "\\[").replace("]", "\\]");
             // Connection reset. Connection ID will vary so use a pattern
             // On some platform / Connector combinations (e.g. Windows / APR),
             // the TCP connection close will be processed before the client gets
@@ -266,7 +259,7 @@ public class TestHttp2Limits extends Http2TestBase {
             try {
                 parser.readFrame(true);
                 Assert.assertThat(output.getTrace(), RegexMatcher.matchesRegex(
-                        "0-Goaway-\\[1\\]-\\[11\\]-\\[" + limitMessage + "\\]"));
+                        "0-Goaway-\\[1\\]-\\[11\\]-\\[Connection \\[\\d++\\], Stream \\[3\\], .*"));
             } catch (IOException se) {
                 // Expected on some platforms
             }
@@ -396,14 +389,15 @@ public class TestHttp2Limits extends Http2TestBase {
             break;
         }
         case 1: {
-            // Check status is 400
+            // Check status is 500
             parser.readFrame(true);
             Assert.assertTrue(output.getTrace(), output.getTrace().startsWith(
-                    "3-HeadersStart\n3-Header-[:status]-[400]"));
+                    "3-HeadersStart\n3-Header-[:status]-[500]"));
             output.clearTrace();
-            // Check EOS followed by error page body
+            // Check EOS followed by reset is next
             parser.readFrame(true);
-            Assert.assertTrue(output.getTrace(), output.getTrace().startsWith("3-EndOfStream\n3-Body-<!doctype"));
+            parser.readFrame(true);
+            Assert.assertEquals("3-EndOfStream\n3-RST-[2]\n", output.getTrace());
             break;
         }
         default: {
@@ -438,6 +432,8 @@ public class TestHttp2Limits extends Http2TestBase {
             FailureMode failMode) throws Exception {
         enableHttp2();
 
+        Http2Protocol http2Protocol =
+                    (Http2Protocol) getTomcatInstance().getConnector().findUpgradeProtocols()[0];
         http2Protocol.setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
         http2Protocol.setMaxTrailerCount(maxTrailerCount);
         http2Protocol.setMaxTrailerSize(maxTrailerSize);
@@ -478,7 +474,6 @@ public class TestHttp2Limits extends Http2TestBase {
                     "3-WindowSize-[256]\n" +
                     "3-HeadersStart\n" +
                     "3-Header-[:status]-[200]\n" +
-                    "3-Header-[content-length]-[" + len + "]\n" +
                     "3-Header-[date]-["+ DEFAULT_DATE + "]\n" +
                     "3-HeadersEnd\n" +
                     "3-Body-" +
@@ -499,14 +494,9 @@ public class TestHttp2Limits extends Http2TestBase {
             // NIO2 can sometimes send window updates depending timing
             skipWindowSizeFrames();
 
-            // This message uses i18n and needs to be used in a regular
-            // expression (since we don't know the connection ID). Generate the
-            // string as a regular expression and then replace '[' and ']' with
-            // the escaped values.
-            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\d++", "3");
-            limitMessage = limitMessage.replace("[", "\\[").replace("]", "\\]");
+            // Connection ID will vary so use a pattern
             Assert.assertThat(output.getTrace(), RegexMatcher.matchesRegex(
-                    "0-Goaway-\\[3\\]-\\[11\\]-\\[" + limitMessage + "\\]"));
+                    "0-Goaway-\\[3\\]-\\[11\\]-\\[Connection \\[\\d++\\], Stream \\[3\\], .*"));
             break;
         }
         }

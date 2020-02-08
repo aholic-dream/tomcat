@@ -95,10 +95,7 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public class FileHandler extends Handler {
-
     public static final int DEFAULT_MAX_DAYS = -1;
-    public static final int DEFAULT_BUFFER_SIZE = -1;
-
 
     private static final ExecutorService DELETE_FILES_SERVICE =
             Executors.newSingleThreadExecutor(new ThreadFactory() {
@@ -154,28 +151,19 @@ public class FileHandler extends Handler {
 
 
     public FileHandler() {
-        this(null, null, null);
+        this(null, null, null, DEFAULT_MAX_DAYS);
     }
 
 
     public FileHandler(String directory, String prefix, String suffix) {
-        this(directory, prefix, suffix, null);
+        this(directory, prefix, suffix, DEFAULT_MAX_DAYS);
     }
 
-
-    public FileHandler(String directory, String prefix, String suffix, Integer maxDays) {
-        this(directory, prefix, suffix, maxDays, null, null);
-    }
-
-
-    public FileHandler(String directory, String prefix, String suffix, Integer maxDays,
-            Boolean rotatable, Integer bufferSize) {
+    public FileHandler(String directory, String prefix, String suffix, int maxDays) {
         this.directory = directory;
         this.prefix = prefix;
         this.suffix = suffix;
         this.maxDays = maxDays;
-        this.rotatable = rotatable;
-        this.bufferSize = bufferSize;
         configure();
         openWriter();
         clean();
@@ -195,31 +183,31 @@ public class FileHandler extends Handler {
     /**
      * The directory in which log files are created.
      */
-    private String directory;
+    private String directory = null;
 
 
     /**
      * The prefix that is added to log file filenames.
      */
-    private String prefix;
+    private String prefix = null;
 
 
     /**
      * The suffix that is added to log file filenames.
      */
-    private String suffix;
+    private String suffix = null;
 
 
     /**
      * Determines whether the log file is rotatable
      */
-    private Boolean rotatable;
+    private boolean rotatable = true;
 
 
     /**
      * Maximum number of days to keep the log files
      */
-    private Integer maxDays;
+    private int maxDays = DEFAULT_MAX_DAYS;
 
 
     /**
@@ -237,7 +225,7 @@ public class FileHandler extends Handler {
     /**
      * Log buffer size.
      */
-    private Integer bufferSize;
+    private int bufferSize = -1;
 
 
     /**
@@ -251,7 +239,7 @@ public class FileHandler extends Handler {
 
 
     /**
-     * Format and publish a <code>LogRecord</code>.
+     * Format and publish a <tt>LogRecord</tt>.
      *
      * @param  record  description of the log event
      */
@@ -269,7 +257,7 @@ public class FileHandler extends Handler {
         writerLock.readLock().lock();
         try {
             // If the date has changed, switch log files
-            if (rotatable.booleanValue() && !date.equals(tsDate)) {
+            if (rotatable && !date.equals(tsDate)) {
                 // Upgrade to writeLock before we switch
                 writerLock.readLock().unlock();
                 writerLock.writeLock().lock();
@@ -300,7 +288,7 @@ public class FileHandler extends Handler {
             try {
                 if (writer != null) {
                     writer.write(result);
-                    if (bufferSize.intValue() < 0) {
+                    if (bufferSize < 0) {
                         writer.flush();
                     }
                 } else {
@@ -374,16 +362,15 @@ public class FileHandler extends Handler {
     private void configure() {
 
         Timestamp ts = new Timestamp(System.currentTimeMillis());
-        date = ts.toString().substring(0, 10);
+        String tsString = ts.toString().substring(0, 19);
+        date = tsString.substring(0, 10);
 
         String className = this.getClass().getName(); //allow classes to override
 
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
         // Retrieve configuration of logging file name
-        if (rotatable == null) {
-            rotatable = Boolean.valueOf(getProperty(className + ".rotatable", "true"));
-        }
+        rotatable = Boolean.parseBoolean(getProperty(className + ".rotatable", "true"));
         if (directory == null) {
             directory = getProperty(className + ".directory", "logs");
         }
@@ -395,37 +382,31 @@ public class FileHandler extends Handler {
         }
 
         // https://bz.apache.org/bugzilla/show_bug.cgi?id=61232
-        boolean shouldCheckForRedundantSeparator =
-                !rotatable.booleanValue() && !prefix.isEmpty() && !suffix.isEmpty();
+        boolean shouldCheckForRedundantSeparator = !rotatable && !prefix.isEmpty()
+                && !suffix.isEmpty();
         // assuming separator is just one char, if there are use cases with
         // more, the notion of separator might be introduced
-        if (shouldCheckForRedundantSeparator &&
-                (prefix.charAt(prefix.length() - 1) == suffix.charAt(0))) {
+        if (shouldCheckForRedundantSeparator
+                && (prefix.charAt(prefix.length() - 1) == suffix.charAt(0))) {
             suffix = suffix.substring(1);
         }
 
         pattern = Pattern.compile("^(" + Pattern.quote(prefix) + ")\\d{4}-\\d{1,2}-\\d{1,2}("
                 + Pattern.quote(suffix) + ")$");
-
-        if (maxDays == null) {
-            String sMaxDays = getProperty(className + ".maxDays", String.valueOf(DEFAULT_MAX_DAYS));
+        String sMaxDays = getProperty(className + ".maxDays", String.valueOf(DEFAULT_MAX_DAYS));
+        if (maxDays <= 0) {
             try {
-                maxDays = Integer.valueOf(sMaxDays);
+                maxDays = Integer.parseInt(sMaxDays);
             } catch (NumberFormatException ignore) {
-                maxDays = Integer.valueOf(DEFAULT_MAX_DAYS);
+                // no-op
             }
         }
-
-        if (bufferSize == null) {
-            String sBufferSize = getProperty(className + ".bufferSize",
-                    String.valueOf(DEFAULT_BUFFER_SIZE));
-            try {
-                bufferSize = Integer.valueOf(sBufferSize);
-            } catch (NumberFormatException ignore) {
-                bufferSize = Integer.valueOf(DEFAULT_BUFFER_SIZE);
-            }
+        String sBufferSize = getProperty(className + ".bufferSize", String.valueOf(bufferSize));
+        try {
+            bufferSize = Integer.parseInt(sBufferSize);
+        } catch (NumberFormatException ignore) {
+            //no op
         }
-
         // Get encoding for the logging file
         String encoding = getProperty(className + ".encoding", null);
         if (encoding != null && encoding.length() > 0) {
@@ -465,6 +446,7 @@ public class FileHandler extends Handler {
 
         // Set error manager
         setErrorManager(new ErrorManager());
+
     }
 
 
@@ -502,7 +484,7 @@ public class FileHandler extends Handler {
         OutputStream os = null;
         try {
             File pathname = new File(dir.getAbsoluteFile(), prefix
-                    + (rotatable.booleanValue() ? date : "") + suffix);
+                    + (rotatable ? date : "") + suffix);
             File parent = pathname.getParentFile();
             if (!parent.mkdirs() && !parent.isDirectory()) {
                 reportError("Unable to create [" + parent + "]", null, ErrorManager.OPEN_FAILURE);
@@ -511,7 +493,7 @@ public class FileHandler extends Handler {
             }
             String encoding = getEncoding();
             fos = new FileOutputStream(pathname, true);
-            os = bufferSize.intValue() > 0 ? new BufferedOutputStream(fos, bufferSize.intValue()) : fos;
+            os = bufferSize > 0 ? new BufferedOutputStream(fos, bufferSize) : fos;
             writer = new PrintWriter(
                     (encoding != null) ? new OutputStreamWriter(os, encoding)
                                        : new OutputStreamWriter(os), false);
@@ -539,7 +521,7 @@ public class FileHandler extends Handler {
     }
 
     private void clean() {
-        if (maxDays.intValue() <= 0) {
+        if (maxDays <= 0) {
             return;
         }
         DELETE_FILES_SERVICE.submit(() -> {
@@ -555,7 +537,7 @@ public class FileHandler extends Handler {
     }
 
     private DirectoryStream<Path> streamFilesForDelete() throws IOException {
-        LocalDate maxDaysOffset = LocalDate.now().minus(maxDays.intValue(), ChronoUnit.DAYS);
+        LocalDate maxDaysOffset = LocalDate.now().minus(maxDays, ChronoUnit.DAYS);
         return Files.newDirectoryStream(new File(directory).toPath(), path -> {
             boolean result = false;
             String date = obtainDateFromPath(path);

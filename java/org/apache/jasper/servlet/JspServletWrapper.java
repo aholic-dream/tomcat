@@ -82,9 +82,9 @@ public class JspServletWrapper {
     // Logger
     private final Log log = LogFactory.getLog(JspServletWrapper.class); // must not be static
 
-    private volatile Servlet theServlet;
+    private Servlet theServlet;
     private final String jspUri;
-    private volatile Class<?> tagHandlerClass;
+    private Class<?> tagHandlerClass;
     private final JspCompilationContext ctxt;
     private long available = 0L;
     private final ServletConfig config;
@@ -327,7 +327,7 @@ public class JspServletWrapper {
                         }
                     }
                 }
-                target = tagHandlerClass.getConstructor().newInstance();
+                target = tagHandlerClass.newInstance();
             } else {
                 target = getServlet();
             }

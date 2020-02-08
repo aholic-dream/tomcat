@@ -1500,9 +1500,8 @@ public enum Cipher {
             null,
             null
     ),
-    /* GOST Ciphersuites. Unsupported by Java. OpenSSL lists them with IDs
-     * 0x3000080 to 0x3000083
-     * The ciphers are not listed in the IANA registry. */
+    /* GOST Ciphersuites. Unsupported by Java. OpenSSl lists them with IDs
+     * 0x3000080 to 0x3000083 */
     /*
     // Cipher 80
     TLS_GOSTR341094_WITH_28147_CNT_IMIT(

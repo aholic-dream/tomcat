@@ -39,7 +39,7 @@ import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Provides functionality and attributes common to all supported protocols
- * (currently HTTP and AJP) for processing a single request/response.
+ * (currently HTTP and AJP).
  */
 public abstract class AbstractProcessor extends AbstractProcessorLight implements ActionHook {
 
@@ -90,7 +90,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         userDataHelper = new UserDataHelper(getLog());
     }
 
-
     /**
      * Update the current error state to the new error state if the new error
      * state is more severe than the current error state.
@@ -98,9 +97,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * @param t The error which occurred
      */
     protected void setErrorState(ErrorState errorState, Throwable t) {
-        // Use the return value to avoid processing more than one async error
-        // in a single async cycle.
-        boolean setError = response.setError();
+        response.setError();
         boolean blockIo = this.errorState.isIoAllowed() && !errorState.isIoAllowed();
         this.errorState = this.errorState.getMostSevere(errorState);
         // Don't change the status code for IOException since that is almost
@@ -112,10 +109,17 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         if (t != null) {
             request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, t);
         }
-        if (blockIo && isAsync() && setError) {
-            if (asyncStateMachine.asyncError()) {
-                processSocketEvent(SocketEvent.ERROR, true);
+        if (blockIo && !ContainerThreadMarker.isContainerThread() && isAsync()) {
+            // The error occurred on a non-container thread during async
+            // processing which means not all of the necessary clean-up will
+            // have been completed. Dispatch to a container thread to do the
+            // clean-up. Need to do it this way to ensure that all the necessary
+            // clean-up is performed.
+            asyncStateMachine.asyncMustError();
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(sm.getString("abstractProcessor.nonContainerThreadError"), t);
             }
+            processSocketEvent(SocketEvent.ERROR, true);
         }
     }
 
@@ -145,7 +149,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * Set the socket wrapper being used.
      * @param socketWrapper The socket wrapper
      */
-    protected void setSocketWrapper(SocketWrapperBase<?> socketWrapper) {
+    protected final void setSocketWrapper(SocketWrapperBase<?> socketWrapper) {
         this.socketWrapper = socketWrapper;
     }
 
@@ -193,7 +197,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     @Override
-    public final SocketState dispatch(SocketEvent status) throws IOException {
+    public final SocketState dispatch(SocketEvent status) {
 
         if (status == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
             asyncStateMachine.asyncOperation();
@@ -247,25 +251,15 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
 
-        SocketState state;
-
         if (getErrorState().isError()) {
             request.updateCounters();
-            state = SocketState.CLOSED;
+            return SocketState.CLOSED;
         } else if (isAsync()) {
-            state = SocketState.LONG;
+            return SocketState.LONG;
         } else {
             request.updateCounters();
-            state = dispatchEndRequest();
+            return dispatchEndRequest();
         }
-
-        if (getLog().isDebugEnabled()) {
-            getLog().debug("Socket: [" + socketWrapper +
-                    "], Status in: [" + status +
-                    "], State out: [" + state + "]");
-        }
-
-        return state;
     }
 
 
@@ -571,13 +565,14 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             break;
         }
         case NB_READ_INTEREST: {
-            AtomicBoolean isReady = (AtomicBoolean)param;
-            isReady.set(isReadyForRead());
+            if (!isRequestBodyFullyRead()) {
+                registerReadInterest();
+            }
             break;
         }
         case NB_WRITE_INTEREST: {
             AtomicBoolean isReady = (AtomicBoolean)param;
-            isReady.set(isReadyForWrite());
+            isReady.set(isReady());
             break;
         }
         case DISPATCH_READ: {
@@ -634,13 +629,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Sub-classes of this base class represent a single request/response pair.
-     * The timeout to be processed is, therefore, the Servlet asynchronous
-     * processing timeout.
-     */
     @Override
     public void timeoutAsync(long now) {
         if (now < 0) {
@@ -652,10 +640,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 if ((now - asyncStart) > asyncTimeout) {
                     doTimeoutAsync();
                 }
-            } else if (!asyncStateMachine.isAvailable()) {
-                // Timeout the async process if the associated web application
-                // is no longer running.
-                doTimeoutAsync();
             }
         }
     }
@@ -797,26 +781,13 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
-    protected boolean isReadyForRead() {
-        if (available(true) > 0) {
-            return true;
-        }
-
-        if (!isRequestBodyFullyRead()) {
-            registerReadInterest();
-        }
-
-        return false;
-    }
-
-
     protected abstract boolean isRequestBodyFullyRead();
 
 
     protected abstract void registerReadInterest();
 
 
-    protected abstract boolean isReadyForWrite();
+    protected abstract boolean isReady();
 
 
     protected void executeDispatches() {
@@ -957,30 +928,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      */
     protected abstract boolean flushBufferedWrite() throws IOException ;
 
-
     /**
      * Perform any necessary clean-up processing if the dispatch resulted in the
      * completion of processing for the current request.
      *
      * @return The state to return for the socket once the clean-up for the
      *         current request has completed
-     *
-     * @throws IOException If an I/O error occurs while attempting to end the
-     *         request
      */
-    protected abstract SocketState dispatchEndRequest() throws IOException;
-
-
-    @Override
-    protected final void logAccess(SocketWrapperBase<?> socketWrapper) throws IOException {
-        // Set the socket wrapper so the access log can read the socket related
-        // information (e.g. client IP)
-        setSocketWrapper(socketWrapper);
-        // Setup the minimal request information
-        request.setStartTime(System.currentTimeMillis());
-        // Setup the minimal response information
-        response.setStatus(400);
-        response.setError();
-        getAdapter().log(request, response, 0);
-    }
+    protected abstract SocketState dispatchEndRequest();
 }

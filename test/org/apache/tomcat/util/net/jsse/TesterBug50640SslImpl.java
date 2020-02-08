@@ -16,13 +16,13 @@
  */
 package org.apache.tomcat.util.net.jsse;
 
-import org.apache.tomcat.util.net.Constants;
 import org.apache.tomcat.util.net.SSLHostConfig;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 import org.apache.tomcat.util.net.SSLUtil;
 
 public class TesterBug50640SslImpl extends JSSEImplementation {
 
+    public static final String PROPERTY_NAME = "sslEnabledProtocols";
     public static final String PROPERTY_VALUE = "magic";
 
 
@@ -31,7 +31,7 @@ public class TesterBug50640SslImpl extends JSSEImplementation {
         SSLHostConfig sslHostConfig = certificate.getSSLHostConfig();
         if (sslHostConfig.getProtocols().size() == 1 &&
                 sslHostConfig.getProtocols().contains(PROPERTY_VALUE)) {
-            sslHostConfig.setProtocols(Constants.SSL_PROTO_TLSv1_2);
+            sslHostConfig.setProtocols("TLSv1,TLSv1.1,TLSv1.2");
             return super.getSSLUtil(certificate);
         } else {
             return null;

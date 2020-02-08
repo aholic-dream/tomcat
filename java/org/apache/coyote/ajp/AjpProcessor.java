@@ -25,11 +25,6 @@ import java.nio.ByteBuffer;
 import java.security.NoSuchProviderException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -83,9 +78,6 @@ public class AjpProcessor extends AbstractProcessor {
     private static final byte[] pongMessageArray;
 
 
-    private static final Set<String> javaxAttributes;
-
-
     static {
         // Allocate the end message array
         AjpMessage endMessage = new AjpMessage(16);
@@ -126,14 +118,6 @@ public class AjpProcessor extends AbstractProcessor {
         pongMessageArray = new byte[pongMessage.getLen()];
         System.arraycopy(pongMessage.getBuffer(), 0, pongMessageArray,
                 0, pongMessage.getLen());
-
-        // Build the Set of javax attributes
-        Set<String> s = new HashSet<>();
-        s.add("javax.servlet.request.cipher_suite");
-        s.add("javax.servlet.request.key_size");
-        s.add("javax.servlet.request.ssl_session");
-        s.add("javax.servlet.request.X509Certificate");
-        javaxAttributes= Collections.unmodifiableSet(s);
     }
 
 
@@ -329,18 +313,15 @@ public class AjpProcessor extends AbstractProcessor {
         this.socketWrapper = socket;
 
         boolean cping = false;
-        // Expected to block on the first read as there should be at least one
-        // AJP message to read.
-        boolean firstRead = true;
+        boolean keptAlive = false;
 
         while (!getErrorState().isError() && !protocol.isPaused()) {
             // Parsing the request header
             try {
                 // Get first message of the request
-                if (!readMessage(requestHeaderMessage, firstRead)) {
+                if (!readMessage(requestHeaderMessage, !keptAlive)) {
                     break;
                 }
-                firstRead = false;
 
                 // Processing the request so make sure the connection rather
                 // than keep-alive timeout is used
@@ -359,9 +340,6 @@ public class AjpProcessor extends AbstractProcessor {
                         socketWrapper.write(true, pongMessageArray, 0, pongMessageArray.length);
                         socketWrapper.flush(true);
                     } catch (IOException e) {
-                        if (getLog().isDebugEnabled()) {
-                            getLog().debug("Pong message failed", e);
-                        }
                         setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
                     }
                     recycle();
@@ -375,6 +353,7 @@ public class AjpProcessor extends AbstractProcessor {
                     setErrorState(ErrorState.CLOSE_CONNECTION_NOW, null);
                     break;
                 }
+                keptAlive = true;
                 request.setStartTime(System.currentTimeMillis());
             } catch (IOException e) {
                 setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
@@ -714,8 +693,8 @@ public class AjpProcessor extends AbstractProcessor {
         }
 
         // Decode extra attributes
-        String secret = protocol.getSecret();
-        boolean secretPresentInRequest = false;
+        String requiredSecret = protocol.getRequiredSecret();
+        boolean secret = false;
         byte attributeCode;
         while ((attributeCode = requestHeaderMessage.getByte())
                 != Constants.SC_A_ARE_DONE) {
@@ -744,26 +723,8 @@ public class AjpProcessor extends AbstractProcessor {
                     }
                 } else if(n.equals(Constants.SC_A_SSL_PROTOCOL)) {
                     request.setAttribute(SSLSupport.PROTOCOL_VERSION_KEY, v);
-                } else if (n.equals("JK_LB_ACTIVATION")) {
-                    request.setAttribute(n, v);
-                } else if (javaxAttributes.contains(n)) {
-                    request.setAttribute(n, v);
                 } else {
-                    // All 'known' attributes will be processed by the previous
-                    // blocks. Any remaining attribute is an 'arbitrary' one.
-                    Pattern pattern = protocol.getAllowedRequestAttributesPatternInternal();
-                    if (pattern == null) {
-                        response.setStatus(403);
-                        setErrorState(ErrorState.CLOSE_CLEAN, null);
-                    } else {
-                        Matcher m = pattern.matcher(n);
-                        if (m.matches()) {
-                            request.setAttribute(n, v);
-                        } else {
-                            response.setStatus(403);
-                            setErrorState(ErrorState.CLOSE_CLEAN, null);
-                        }
-                    }
+                    request.setAttribute(n, v );
                 }
                 break;
 
@@ -835,9 +796,9 @@ public class AjpProcessor extends AbstractProcessor {
 
             case Constants.SC_A_SECRET:
                 requestHeaderMessage.getBytes(tmpMB);
-                if (secret != null) {
-                    secretPresentInRequest = true;
-                    if (!tmpMB.equals(secret)) {
+                if (requiredSecret != null) {
+                    secret = true;
+                    if (!tmpMB.equals(requiredSecret)) {
                         response.setStatus(403);
                         setErrorState(ErrorState.CLOSE_CLEAN, null);
                     }
@@ -853,7 +814,7 @@ public class AjpProcessor extends AbstractProcessor {
         }
 
         // Check if secret was submitted if required
-        if ((secret != null) && !secretPresentInRequest) {
+        if ((requiredSecret != null) && !secret) {
             response.setStatus(403);
             setErrorState(ErrorState.CLOSE_CLEAN, null);
         }
@@ -1179,7 +1140,7 @@ public class AjpProcessor extends AbstractProcessor {
 
 
     @Override
-    protected final boolean isReadyForWrite() {
+    protected final boolean isReady() {
         return responseMsgPos == -1 && socketWrapper.isReadyForWrite();
     }
 

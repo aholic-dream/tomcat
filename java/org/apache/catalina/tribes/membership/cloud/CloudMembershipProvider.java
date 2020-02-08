@@ -39,10 +39,8 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 public abstract class CloudMembershipProvider extends MembershipProviderBase implements Heartbeat, ChannelListener {
-    private static final Log log = LogFactory.getLog(CloudMembershipProvider.class);
-    protected static final StringManager sm = StringManager.getManager(CloudMembershipProvider.class);
-
-    protected static final String CUSTOM_ENV_PREFIX = "OPENSHIFT_KUBE_PING_";
+    private static final Log log = LogFactory.getLog(KubernetesMembershipProvider.class);
+    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
     protected String url;
     protected StreamProvider streamProvider;
@@ -54,10 +52,8 @@ public abstract class CloudMembershipProvider extends MembershipProviderBase imp
 
     protected Map<String, String> headers = new HashMap<>();
 
-    protected String localIp;
     protected int port;
-
-    protected long expirationTime = 5000;
+    protected String hostName;
 
     public CloudMembershipProvider() {
         try {
@@ -67,45 +63,29 @@ public abstract class CloudMembershipProvider extends MembershipProviderBase imp
         }
     }
 
-    /**
-     * Get value of environment variable.
-     * @param keys the environment variables
-     * @return the env variables values, or null if not found
-     */
+    // Get value of environment variable named keys[0]
+    // If keys[0] isn't found, try keys[1], keys[2], ...
+    // If nothing is found, return null
     protected static String getEnv(String... keys) {
         String val = null;
+
         for (String key : keys) {
             val = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getenv(key));
             if (val != null)
                 break;
         }
-        return val;
-    }
 
-    /**
-     * Get the Kubernetes namespace, or "tomcat" if the Kubernetes environment variable
-     * cannot be found (with a warning log about the missing namespace).
-     * @return the namespace
-     */
-    protected String getNamespace() {
-        String namespace = getEnv("KUBERNETES_NAMESPACE", CUSTOM_ENV_PREFIX + "NAMESPACE");
-        if (namespace == null || namespace.length() == 0) {
-            log.warn(sm.getString("kubernetesMembershipProvider.noNamespace"));
-            namespace = "tomcat";
-        }
-        return namespace;
+        return val;
     }
 
     @Override
     public void init(Properties properties) throws IOException {
         startTime = Instant.now();
 
-        CloudMembershipService service = (CloudMembershipService) this.service;
-        connectionTimeout = service.getConnectTimeout();
-        readTimeout = service.getReadTimeout();
-        expirationTime = service.getExpirationTime();
+        connectionTimeout = Integer.parseInt(properties.getProperty("connectionTimeout", "1000"));
+        readTimeout = Integer.parseInt(properties.getProperty("readTimeout", "1000"));
 
-        localIp = InetAddress.getLocalHost().getHostAddress();
+        hostName = InetAddress.getLocalHost().getHostName();
         port = Integer.parseInt(properties.getProperty("tcpListenPort"));
     }
 
@@ -124,47 +104,21 @@ public abstract class CloudMembershipProvider extends MembershipProviderBase imp
 
     @Override
     public void heartbeat() {
+        log.debug("Fetching announced members");
         Member[] announcedMembers = fetchMembers();
         // Add new members or refresh the members in the membership
         for (Member member : announcedMembers) {
             if (membership.memberAlive(member)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Member added: " + member);
-                }
-                Runnable r = new Runnable() {
-                    @Override
-                    public void run(){
-                        String name = Thread.currentThread().getName();
-                        try {
-                            Thread.currentThread().setName("CloudMembership-memberAdded");
-                            membershipListener.memberAdded(member);
-                        } finally {
-                            Thread.currentThread().setName(name);
-                        }
-                    }
-                };
-                executor.execute(r);
+                membershipListener.memberAdded(member);
             }
         }
         // Remove non refreshed members from the membership
-        Member[] expired = membership.expire(expirationTime);
+        Member[] expired = membership.expire(100); // TODO: is 100ms a good value?
         for (Member member : expired) {
             if (log.isDebugEnabled()) {
-                log.debug("Member disappeared: " + member);
+                log.debug("Member is dead: " + member);
             }
-            Runnable r = new Runnable() {
-                @Override
-                public void run(){
-                    String name = Thread.currentThread().getName();
-                    try {
-                        Thread.currentThread().setName("CloudMembership-memberDisappeared");
-                        membershipListener.memberDisappeared(member);
-                    } finally {
-                        Thread.currentThread().setName(name);
-                    }
-                }
-            };
-            executor.execute(r);
+            membershipListener.memberDisappeared(member);
         }
     }
 

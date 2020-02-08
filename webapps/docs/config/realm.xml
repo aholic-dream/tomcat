@@ -326,7 +326,7 @@
     </attributes>
 
     <p>See the <a href="../realm-howto.html#DataSourceRealm">
-    DataSource Realm How-To</a> for more information on setting up container
+    DataSource Realm HOW-TO</a> for more information on setting up container
     managed security using the DataSource Database Realm component.</p>
 
   </subsection>
@@ -454,15 +454,6 @@
         <p>A string specifying how aliases are to be dereferenced during
         search operations. The allowed values are "always", "never",
         "finding" and "searching". If not specified, "always" is used.</p>
-      </attribute>
-
-      <attribute name="forceDnHexEscape" required="false">
-        <p>A setting of <code>true</code> forces escaping in the String
-        representation of a distinguished name to use the <code>\nn</code> form.
-        This may avoid issues with realms using Active Directory which appears
-        to be more tolerant of optional escaping when the <code>\nn</code> form
-        is used. If not specified, the default of <code>false</code> will be
-        used.</p>
       </attribute>
 
       <attribute name="hostnameVerifierClassName" required="false">

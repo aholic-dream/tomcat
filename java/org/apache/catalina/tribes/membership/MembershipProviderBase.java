@@ -18,7 +18,6 @@
 package org.apache.catalina.tribes.membership;
 
 import java.util.Properties;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.MembershipListener;
@@ -30,8 +29,6 @@ public abstract class MembershipProviderBase implements MembershipProvider {
     protected Membership membership;
     protected MembershipListener membershipListener;
     protected MembershipService service;
-    // The event notification executor
-    protected ScheduledExecutorService executor;
 
     @Override
     public void init(Properties properties) throws Exception {
@@ -63,6 +60,5 @@ public abstract class MembershipProviderBase implements MembershipProvider {
     @Override
     public void setMembershipService(MembershipService service) {
         this.service = service;
-        executor = service.getChannel().getUtilityExecutor();
     }
 }

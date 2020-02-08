@@ -16,7 +16,6 @@
  */
 package org.apache.jasper.security;
 
-import org.apache.jasper.compiler.Localizer;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -54,7 +53,7 @@ public final class SecurityClassLoad {
             loader.loadClass( basePackage + "servlet.JspServletWrapper");
         } catch (ClassNotFoundException ex) {
             Log log = LogFactory.getLog(SecurityClassLoad.class);
-            log.error(Localizer.getMessage("jsp.error.securityPreload"), ex);
+            log.error("SecurityClassLoad", ex);
         }
     }
 }

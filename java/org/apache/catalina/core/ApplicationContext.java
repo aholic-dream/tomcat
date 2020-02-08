@@ -180,7 +180,8 @@ public class ApplicationContext implements ServletContext {
     /**
      * The string manager for this package.
      */
-    private static final StringManager sm = StringManager.getManager(Constants.Package);
+    private static final StringManager sm =
+      StringManager.getManager(Constants.Package);
 
 
     /**
@@ -261,7 +262,7 @@ public class ApplicationContext implements ServletContext {
                 pathMB.setString(uri);
 
                 MappingData mappingData = new MappingData();
-                service.getMapper().map(hostMB, pathMB, null, mappingData);
+                ((Engine) host.getParent()).getService().getMapper().map(hostMB, pathMB, null, mappingData);
                 child = mappingData.context;
             }
         } catch (Throwable t) {
@@ -449,6 +450,8 @@ public class ApplicationContext implements ServletContext {
             uri = URLEncoder.DEFAULT.encode(getContextPath() + uri, StandardCharsets.UTF_8);
         }
 
+        pos = normalizedUri.length();
+
         // Use the thread local URI and mapping data
         DispatchData dd = dispatchData.get();
         if (dd == null) {
@@ -593,7 +596,8 @@ public class ApplicationContext implements ServletContext {
             return null;
         }
         if (!path.startsWith("/")) {
-            throw new IllegalArgumentException (sm.getString("applicationContext.resourcePaths.iae", path));
+            throw new IllegalArgumentException
+                (sm.getString("applicationContext.resourcePaths.iae", path));
         }
 
         WebResourceRoot resources = context.getResources();
@@ -674,23 +678,26 @@ public class ApplicationContext implements ServletContext {
 
         // Notify interested application event listeners
         Object listeners[] = context.getApplicationEventListeners();
-        if ((listeners == null) || (listeners.length == 0)) {
+        if ((listeners == null) || (listeners.length == 0))
             return;
-        }
-        ServletContextAttributeEvent event = new ServletContextAttributeEvent(
-                context.getServletContext(), name, value);
-        for (Object obj : listeners) {
-            if (!(obj instanceof ServletContextAttributeListener)) {
+        ServletContextAttributeEvent event =
+          new ServletContextAttributeEvent(context.getServletContext(),
+                                            name, value);
+        for (int i = 0; i < listeners.length; i++) {
+            if (!(listeners[i] instanceof ServletContextAttributeListener))
                 continue;
-            }
-            ServletContextAttributeListener listener = (ServletContextAttributeListener) obj;
+            ServletContextAttributeListener listener =
+                (ServletContextAttributeListener) listeners[i];
             try {
-                context.fireContainerEvent("beforeContextAttributeRemoved", listener);
+                context.fireContainerEvent("beforeContextAttributeRemoved",
+                                           listener);
                 listener.attributeRemoved(event);
-                context.fireContainerEvent("afterContextAttributeRemoved", listener);
+                context.fireContainerEvent("afterContextAttributeRemoved",
+                                           listener);
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
-                context.fireContainerEvent("afterContextAttributeRemoved", listener);
+                context.fireContainerEvent("afterContextAttributeRemoved",
+                                           listener);
                 // FIXME - should we do anything besides log these?
                 log(sm.getString("applicationContext.attributeEvent"), t);
             }
@@ -702,7 +709,8 @@ public class ApplicationContext implements ServletContext {
     public void setAttribute(String name, Object value) {
         // Name cannot be null
         if (name == null) {
-            throw new NullPointerException(sm.getString("applicationContext.setAttribute.namenull"));
+            throw new NullPointerException
+                (sm.getString("applicationContext.setAttribute.namenull"));
         }
 
         // Null value is the same as removeAttribute()
@@ -713,47 +721,53 @@ public class ApplicationContext implements ServletContext {
 
         // Add or replace the specified attribute
         // Check for read only attribute
-        if (readOnlyAttributes.containsKey(name)) {
+        if (readOnlyAttributes.containsKey(name))
             return;
-        }
 
         Object oldValue = attributes.put(name, value);
         boolean replaced = oldValue != null;
 
         // Notify interested application event listeners
         Object listeners[] = context.getApplicationEventListeners();
-        if ((listeners == null) || (listeners.length == 0)) {
+        if ((listeners == null) || (listeners.length == 0))
             return;
-        }
         ServletContextAttributeEvent event = null;
-        if (replaced) {
-            event = new ServletContextAttributeEvent(context.getServletContext(), name, oldValue);
-        } else {
-            event = new ServletContextAttributeEvent(context.getServletContext(), name, value);
-        }
+        if (replaced)
+            event =
+                new ServletContextAttributeEvent(context.getServletContext(),
+                                                 name, oldValue);
+        else
+            event =
+                new ServletContextAttributeEvent(context.getServletContext(),
+                                                 name, value);
 
-        for (Object obj : listeners) {
-            if (!(obj instanceof ServletContextAttributeListener)) {
+        for (int i = 0; i < listeners.length; i++) {
+            if (!(listeners[i] instanceof ServletContextAttributeListener))
                 continue;
-            }
-            ServletContextAttributeListener listener = (ServletContextAttributeListener) obj;
+            ServletContextAttributeListener listener =
+                (ServletContextAttributeListener) listeners[i];
             try {
                 if (replaced) {
-                    context.fireContainerEvent("beforeContextAttributeReplaced", listener);
+                    context.fireContainerEvent
+                        ("beforeContextAttributeReplaced", listener);
                     listener.attributeReplaced(event);
-                    context.fireContainerEvent("afterContextAttributeReplaced", listener);
+                    context.fireContainerEvent("afterContextAttributeReplaced",
+                                               listener);
                 } else {
-                    context.fireContainerEvent("beforeContextAttributeAdded", listener);
+                    context.fireContainerEvent("beforeContextAttributeAdded",
+                                               listener);
                     listener.attributeAdded(event);
-                    context.fireContainerEvent("afterContextAttributeAdded", listener);
+                    context.fireContainerEvent("afterContextAttributeAdded",
+                                               listener);
                 }
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
-                if (replaced) {
-                    context.fireContainerEvent("afterContextAttributeReplaced", listener);
-                } else {
-                    context.fireContainerEvent("afterContextAttributeAdded", listener);
-                }
+                if (replaced)
+                    context.fireContainerEvent("afterContextAttributeReplaced",
+                                               listener);
+                else
+                    context.fireContainerEvent("afterContextAttributeAdded",
+                                               listener);
                 // FIXME - should we do anything besides log these?
                 log(sm.getString("applicationContext.attributeEvent"), t);
             }
@@ -966,7 +980,8 @@ public class ApplicationContext implements ServletContext {
 
 
     @Override
-    public <T extends Servlet> T createServlet(Class<T> c) throws ServletException {
+    public <T extends Servlet> T createServlet(Class<T> c)
+    throws ServletException {
         try {
             @SuppressWarnings("unchecked")
             T servlet = (T) context.getInstanceManager().newInstance(c.getName());
@@ -1010,10 +1025,11 @@ public class ApplicationContext implements ServletContext {
 
         // SSL not enabled by default as it can only used on its own
         // Context > Host > Engine > Service
-        Connector[] connectors = service.findConnectors();
+        Service s = ((Engine) context.getParent().getParent()).getService();
+        Connector[] connectors = s.findConnectors();
         // Need at least one SSL enabled connector to use the SSL session ID.
         for (Connector connector : connectors) {
-            if (Boolean.TRUE.equals(connector.getProperty("SSLEnabled"))) {
+            if (Boolean.TRUE.equals(connector.getAttribute("SSLEnabled"))) {
                 supportedSessionTrackingModes.add(SessionTrackingMode.SSL);
                 break;
             }
@@ -1071,7 +1087,8 @@ public class ApplicationContext implements ServletContext {
     public boolean setInitParameter(String name, String value) {
         // Name cannot be null
         if (name == null) {
-            throw new NullPointerException(sm.getString("applicationContext.setAttribute.namenull"));
+            throw new NullPointerException
+                (sm.getString("applicationContext.setAttribute.namenull"));
         }
         if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
             throw new IllegalStateException(
@@ -1145,8 +1162,9 @@ public class ApplicationContext implements ServletContext {
             match = true;
         }
 
-        if (t instanceof HttpSessionListener ||
-                (t instanceof ServletContextListener && newServletContextListenerAllowed)) {
+        if (t instanceof HttpSessionListener
+                || (t instanceof ServletContextListener &&
+                        newServletContextListenerAllowed)) {
             // Add listener directly to the list of instances rather than to
             // the list of class names.
             context.addApplicationLifecycleListener(t);
@@ -1172,7 +1190,8 @@ public class ApplicationContext implements ServletContext {
             throws ServletException {
         try {
             @SuppressWarnings("unchecked")
-            T listener = (T) context.getInstanceManager().newInstance(c);
+            T listener =
+                (T) context.getInstanceManager().newInstance(c);
             if (listener instanceof ServletContextListener ||
                     listener instanceof ServletContextAttributeListener ||
                     listener instanceof ServletRequestListener ||

@@ -96,9 +96,6 @@ public class JmxRegistry {
     }
 
     public ObjectName registerJmx(String keyprop, Object bean) {
-        if (mbserver == null) {
-            return null;
-        }
         String oNameStr = baseOname.toString() + keyprop;
         ObjectName oName = null;
         try {

@@ -921,7 +921,6 @@ public class PoolProperties implements PoolConfiguration, Cloneable, Serializabl
         result = result || (timer && getSuspectTimeout()>0);
         result = result || (timer && isTestWhileIdle());
         result = result || (timer && getMinEvictableIdleTimeMillis()>0);
-        result = result || (timer && getMaxAge()>0);
         return result;
     }
 

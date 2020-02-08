@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.apache.coyote.ActionCode;
-import org.apache.coyote.CloseNowException;
 import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
@@ -304,12 +303,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
             // Sending the response header buffer
             headerBuffer.flip();
             try {
-                SocketWrapperBase<?> socketWrapper = this.socketWrapper;
-                if (socketWrapper != null) {
-                    socketWrapper.write(isBlocking(), headerBuffer);
-                } else {
-                    throw new CloseNowException(sm.getString("iob.failedwrite"));
-                }
+                socketWrapper.write(isBlocking(), headerBuffer);
             } finally {
                 headerBuffer.position(0).limit(headerBuffer.capacity());
             }
@@ -533,12 +527,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
         public int doWrite(ByteBuffer chunk) throws IOException {
             try {
                 int len = chunk.remaining();
-                SocketWrapperBase<?> socketWrapper = Http11OutputBuffer.this.socketWrapper;
-                if (socketWrapper != null) {
-                    socketWrapper.write(isBlocking(), chunk);
-                } else {
-                    throw new CloseNowException(sm.getString("iob.failedwrite"));
-                }
+                socketWrapper.write(isBlocking(), chunk);
                 len -= chunk.remaining();
                 byteCount += len;
                 return len;

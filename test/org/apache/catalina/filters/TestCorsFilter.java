@@ -32,8 +32,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.tomcat.util.http.RequestUtil;
-
 public class TestCorsFilter {
     private FilterChain filterChain = new TesterFilterChain();
 
@@ -1427,27 +1425,27 @@ public class TestCorsFilter {
 
     @Test
     public void testValidOrigin() {
-        Assert.assertTrue(RequestUtil.isValidOrigin("http://www.w3.org"));
+        Assert.assertTrue(CorsFilter.isValidOrigin("http://www.w3.org"));
     }
 
     @Test
     public void testInValidOriginCRLF() {
-        Assert.assertFalse(RequestUtil.isValidOrigin("http://www.w3.org\r\n"));
+        Assert.assertFalse(CorsFilter.isValidOrigin("http://www.w3.org\r\n"));
     }
 
     @Test
     public void testInValidOriginEncodedCRLF1() {
-        Assert.assertFalse(RequestUtil.isValidOrigin("http://www.w3.org%0d%0a"));
+        Assert.assertFalse(CorsFilter.isValidOrigin("http://www.w3.org%0d%0a"));
     }
 
     @Test
     public void testInValidOriginEncodedCRLF2() {
-        Assert.assertFalse(RequestUtil.isValidOrigin("http://www.w3.org%0D%0A"));
+        Assert.assertFalse(CorsFilter.isValidOrigin("http://www.w3.org%0D%0A"));
     }
 
     @Test
     public void testInValidOriginEncodedCRLF3() {
-        Assert.assertFalse(RequestUtil
+        Assert.assertFalse(CorsFilter
                 .isValidOrigin("http://www.w3.org%0%0d%0ad%0%0d%0aa"));
     }
 

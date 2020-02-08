@@ -18,9 +18,7 @@
 package org.apache.catalina.tribes.membership;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Properties;
 
 import javax.management.ObjectName;
@@ -43,7 +41,7 @@ public class StaticMembershipService extends MembershipServiceBase
     private StaticMembershipProvider provider;
 
     /**
-     * the ObjectName of this MembershipService.
+     * the ObjectName of this McastService.
      */
     private ObjectName oname = null;
 
@@ -109,10 +107,7 @@ public class StaticMembershipService extends MembershipServiceBase
     @Override
     public void setLocalMemberProperties(String listenHost, int listenPort,
             int securePort, int udpPort) {
-        properties.setProperty("tcpListenHost", listenHost);
-        properties.setProperty("tcpListenPort", String.valueOf(listenPort));
         try {
-            findLocalMember();
             localMember.setHostname(listenHost);
             localMember.setPort(listenPort);
             localMember.setSecurePort(securePort);
@@ -227,22 +222,5 @@ public class StaticMembershipService extends MembershipServiceBase
 
     private String getMembershipName() {
         return channel.getName()+"-"+"StaticMembership";
-    }
-
-    private void findLocalMember() throws IOException {
-        if (this.localMember != null) return;
-        String listenHost = properties.getProperty("tcpListenHost");
-        String listenPort = properties.getProperty("tcpListenPort");
-
-        // find local member from static members
-        for (StaticMember staticMember : this.staticMembers) {
-            if (Arrays.equals(InetAddress.getByName(listenHost).getAddress(), staticMember.getHost())
-                    && Integer.parseInt(listenPort) == staticMember.getPort()) {
-                this.localMember = staticMember;
-                break;
-            }
-        }
-        if (this.localMember == null) throw new IllegalStateException(sm.getString("staticMembershipService.noLocalMember"));
-        staticMembers.remove(this.localMember);
     }
 }

@@ -68,7 +68,7 @@ public class AprLifecycleListener
     protected static final int TCN_REQUIRED_MINOR = 2;
     protected static final int TCN_REQUIRED_PATCH = 14;
     protected static final int TCN_RECOMMENDED_MINOR = 2;
-    protected static final int TCN_RECOMMENDED_PV = 23;
+    protected static final int TCN_RECOMMENDED_PV = 14;
 
 
     // ---------------------------------------------- Properties
@@ -142,10 +142,10 @@ public class AprLifecycleListener
                 }
                 // Failure to initialize FIPS mode is fatal
                 if (!(null == FIPSMode || "off".equalsIgnoreCase(FIPSMode)) && !isFIPSModeActive()) {
-                    String errorMessage = sm.getString("aprListener.initializeFIPSFailed");
-                    Error e = new Error(errorMessage);
+                    Error e = new Error(
+                            sm.getString("aprListener.initializeFIPSFailed"));
                     // Log here, because thrown error might be not logged
-                    log.fatal(errorMessage, e);
+                    log.fatal(e.getMessage(), e);
                     throw e;
                 }
             }
@@ -419,10 +419,6 @@ public class AprLifecycleListener
 
     public static boolean getUseOpenSSL() {
         return useOpenSSL;
-    }
-
-    public static boolean isInstanceCreated() {
-        return instanceCreated;
     }
 
 }

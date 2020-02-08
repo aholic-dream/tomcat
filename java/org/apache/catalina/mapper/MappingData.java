@@ -38,10 +38,6 @@ public class MappingData {
     public Wrapper wrapper = null;
     public boolean jspWildCard = false;
 
-    /**
-     * @deprecated Unused. This will be removed in Tomcat 10.
-     */
-    @Deprecated
     public final MessageBytes contextPath = MessageBytes.newInstance();
     public final MessageBytes requestPath = MessageBytes.newInstance();
     public final MessageBytes wrapperPath = MessageBytes.newInstance();
@@ -49,7 +45,7 @@ public class MappingData {
 
     public final MessageBytes redirectPath = MessageBytes.newInstance();
 
-    // Fields used by ApplicationMapping to implement javax.servlet.http.HttpServletMapping
+    // Fields used by ApplicationMapping to implement javax.servlet.http.Mapping
     public MappingMatch matchType = null;
 
     public void recycle() {

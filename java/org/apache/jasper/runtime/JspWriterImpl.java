@@ -66,7 +66,7 @@ public class JspWriterImpl extends JspWriter {
             boolean autoFlush) {
         super(sz, autoFlush);
         if (sz < 0)
-            throw new IllegalArgumentException(Localizer.getMessage("jsp.error.negativeBufferSize"));
+            throw new IllegalArgumentException("Buffer size <= 0");
         this.response = response;
         cb = sz == 0 ? null : new char[sz];
         nextChar = 0;
@@ -184,7 +184,7 @@ public class JspWriterImpl extends JspWriter {
     /** check to make sure that the stream has not been closed */
     private void ensureOpen() throws IOException {
         if (response == null || closed)
-            throw new IOException(Localizer.getMessage("jsp.error.stream.closed"));
+            throw new IOException("Stream closed");
     }
 
 
@@ -319,8 +319,8 @@ public class JspWriterImpl extends JspWriter {
 
     /**
      * Write a line separator.  The line separator string is defined by the
-     * system property <code>line.separator</code>, and is not necessarily a
-     * single newline ('\n') character.
+     * system property <tt>line.separator</tt>, and is not necessarily a single
+     * newline ('\n') character.
      *
      * @exception  IOException  If an I/O error occurs
      */

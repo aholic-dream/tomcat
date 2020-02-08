@@ -103,8 +103,7 @@ public class ErrorReportValve extends ValveBase {
                 }
                 // Close immediately to signal to the client that something went
                 // wrong
-                response.getCoyoteResponse().action(ActionCode.CLOSE_NOW,
-                        request.getAttribute(RequestDispatcher.ERROR_EXCEPTION));
+                response.getCoyoteResponse().action(ActionCode.CLOSE_NOW, null);
             }
             return;
         }

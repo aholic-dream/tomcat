@@ -255,7 +255,7 @@ public class TestSwallowAbortedUploads extends TomcatBaseTest {
 
             Connector c = tomcat.getConnector();
             c.setMaxPostSize(2 * hugeSize);
-            Assert.assertTrue(c.setProperty("maxSwallowSize", Integer.toString(hugeSize)));
+            c.setProperty("maxSwallowSize", Integer.toString(hugeSize));
 
             tomcat.start();
             setPort(c.getLocalPort());
@@ -367,7 +367,7 @@ public class TestSwallowAbortedUploads extends TomcatBaseTest {
 
             Connector c = tomcat.getConnector();
             c.setMaxPostSize(2 * hugeSize);
-            Assert.assertTrue(c.setProperty("maxSwallowSize", Integer.toString(hugeSize)));
+            c.setProperty("maxSwallowSize", Integer.toString(hugeSize));
 
             setPort(c.getLocalPort());
         }
@@ -431,7 +431,7 @@ public class TestSwallowAbortedUploads extends TomcatBaseTest {
         // No need for target to exist.
 
         if (!limit) {
-            Assert.assertTrue(tomcat.getConnector().setProperty("maxSwallowSize", "-1"));
+            tomcat.getConnector().setAttribute("maxSwallowSize", "-1");
         }
 
         tomcat.start();

@@ -499,6 +499,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      * throwables will be caught and logged.
      * @see org.apache.catalina.ha.deploy.FarmWarDeployer#backgroundProcess()
      * @see org.apache.catalina.tribes.group.GroupChannel#heartbeat()
+     * @see org.apache.catalina.tribes.group.GroupChannel.HeartbeatThread#run()
      *
      */
     @Override
@@ -527,7 +528,6 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
             name.append(",component=Deployer");
             onameClusterDeployer = register(clusterDeployer, name.toString());
         }
-        channel.setUtilityExecutor(Container.getService(getContainer()).getServer().getUtilityExecutor());
     }
 
 

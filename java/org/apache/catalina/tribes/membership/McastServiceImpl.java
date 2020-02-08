@@ -26,6 +26,8 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.catalina.tribes.Channel;
@@ -34,6 +36,7 @@ import org.apache.catalina.tribes.MembershipListener;
 import org.apache.catalina.tribes.MessageListener;
 import org.apache.catalina.tribes.io.ChannelData;
 import org.apache.catalina.tribes.io.XByteBuffer;
+import org.apache.catalina.tribes.util.ExecutorFactory;
 import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -137,6 +140,12 @@ public class McastServiceImpl extends MembershipProviderBase {
      * Add the ability to turn on/off recovery
      */
     protected boolean recoveryEnabled = true;
+
+    /**
+     * Dont interrupt the sender/receiver thread, but pass off to an executor
+     */
+    protected final ExecutorService executor =
+            ExecutorFactory.newThreadPool(0, 2, 2, TimeUnit.SECONDS);
 
     /**
      * disable/enable local loopback message

@@ -52,10 +52,6 @@ public class TestHttp2Section_5_3 extends Http2TestBase {
 
         http2Connect();
 
-        // This test uses small window updates that will trigger the excessive
-        // overhead protection so disable it.
-        http2Protocol.setOverheadWindowUpdateThreshold(0);
-
         // Default connection window size is 64k - 1. Initial request will have
         // used 8k (56k -1). Increase it to 57k
         sendWindowUpdate(0, 1 + 1024);
@@ -163,12 +159,9 @@ public class TestHttp2Section_5_3 extends Http2TestBase {
                 // Unexpected stream
                 Assert.fail("Unexpected stream: [" + output.getTrace() + "]");
             }
-            // A value of more than 1 here is unlikely but possible depending on
-            // how threads are scheduled. This has been observed as high as 12
-            // on ci.apache.org so allow a margin and use 20.
-            if (data[1] > 20) {
+            if (data[1] > 10) {
                 // Larger than expected body size
-                Assert.fail("Larger than expected body: [" + output.getTrace() + "] " + data[1]);
+                Assert.fail("Larger than expected body: [" + output.getTrace() + "]");
             }
             output.clearTrace();
         }
@@ -180,7 +173,7 @@ public class TestHttp2Section_5_3 extends Http2TestBase {
         // possible that the timing of the server threads is such that there are
         // still small body frames to read.
         int[] data = parseBodyFrame(output.getTrace());
-        while (data[1] < 20) {
+        while (data[1] < 10) {
             // Debugging Gump failure
             log.info(output.getTrace());
             output.clearTrace();
@@ -198,14 +191,14 @@ public class TestHttp2Section_5_3 extends Http2TestBase {
                 seen19 = true;
                 // If everything works instantly this should be 256 but allow a
                 // fairly large margin for timing differences
-                if (data[1] < 216 || data[1] > 296) {
+                if (data[1] < 236 || data[1] > 276) {
                     Assert.fail("Unexpected body size: [" + output.getTrace() + "]");
                 }
             } else if (data[0] == 21) {
                 seen21 = true;
                 // If everything works instantly this should be 768 but allow a
                 // fairly large margin for timing differences
-                if (data[1] < 728 || data[1] > 808) {
+                if (data[1] < 748 || data[1] > 788) {
                     Assert.fail("Unexpected body size: [" + output.getTrace() + "]");
                 }
             } else {

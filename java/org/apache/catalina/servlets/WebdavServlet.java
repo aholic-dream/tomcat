@@ -61,10 +61,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * Servlet which adds support for
- * <a href="https://tools.ietf.org/html/rfc4918">WebDAV</a>
- * <a href="https://tools.ietf.org/html/rfc4918#section-18">level 2</a>.
- * All the basic HTTP requests
+ * Servlet which adds support for WebDAV level 2. All the basic HTTP requests
  * are handled by the DefaultServlet. The WebDAVServlet must not be used as the
  * default servlet (ie mapped to '/') as it will not work in this configuration.
  * <p>
@@ -123,8 +120,6 @@ import org.xml.sax.SAXException;
  * http://host:port/context/webdavedit/content
  *
  * @author Remy Maucherat
- *
- * @see <a href="https://tools.ietf.org/html/rfc4918">RFC 4918</a>
  */
 public class WebdavServlet extends DefaultServlet {
 
@@ -2157,7 +2152,7 @@ public class WebdavServlet extends DefaultServlet {
                 String property = properties.nextElement();
 
                 if (property.equals("creationdate")) {
-                    generatedXML.writeProperty("D", "creationdate", getISOCreationDate(created));
+                    generatedXML.writeProperty ("D", "creationdate", getISOCreationDate(created));
                 } else if (property.equals("displayname")) {
                     generatedXML.writeElement("D", "displayname", XMLWriter.OPENING);
                     generatedXML.writeData(resourceName);

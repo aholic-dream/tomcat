@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.el.FunctionMapper;
 
-import org.apache.el.util.MessageFactory;
 import org.apache.el.util.ReflectionUtil;
 
 
@@ -99,10 +98,10 @@ public class FunctionMapperImpl extends FunctionMapper implements
 
         public Function(String prefix, String localName, Method m) {
             if (localName == null) {
-                throw new NullPointerException(MessageFactory.get("error.nullLocalName"));
+                throw new NullPointerException("LocalName cannot be null");
             }
             if (m == null) {
-                throw new NullPointerException(MessageFactory.get("error.nullMethod"));
+                throw new NullPointerException("Method cannot be null");
             }
             this.prefix = prefix;
             this.localName = localName;

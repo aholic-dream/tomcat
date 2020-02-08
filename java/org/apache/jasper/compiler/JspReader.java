@@ -118,7 +118,7 @@ class JspReader {
             current = new Mark(this, caw.toCharArray(), fname);
         } catch (Throwable ex) {
             ExceptionUtils.handleThrowable(ex);
-            log.error(Localizer.getMessage("jsp.error.file.cannot.read", fname), ex);
+            log.error("Exception parsing file ", ex);
             err.jspError("jsp.error.file.cannot.read", fname);
         } finally {
             if (reader != null) {

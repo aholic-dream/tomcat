@@ -140,8 +140,7 @@ public interface WebResourceRoot extends Lifecycle {
      *              application. It must start with '/'.
      *
      * @return  The objects that represents the class loader resources at the
-     *          given path. There will always be at least one element although
-     *          that element may represent a resource that is not present.
+     *          given path
      */
     WebResource[] getClassLoaderResources(String path);
 

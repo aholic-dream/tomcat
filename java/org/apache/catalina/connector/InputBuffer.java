@@ -27,7 +27,6 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.servlet.ReadListener;
 
@@ -215,22 +214,16 @@ public class InputBuffer extends Reader
 
 
     public int available() {
-        int available = availableInThisBuffer();
-        if (available == 0) {
-            coyoteRequest.action(ActionCode.AVAILABLE,
-                    Boolean.valueOf(coyoteRequest.getReadListener() != null));
-            available = (coyoteRequest.getAvailable() > 0) ? 1 : 0;
-        }
-        return available;
-    }
-
-
-    private int availableInThisBuffer() {
         int available = 0;
         if (state == BYTE_STATE) {
             available = bb.remaining();
         } else if (state == CHAR_STATE) {
             available = cb.remaining();
+        }
+        if (available == 0) {
+            coyoteRequest.action(ActionCode.AVAILABLE,
+                    Boolean.valueOf(coyoteRequest.getReadListener() != null));
+            available = (coyoteRequest.getAvailable() > 0) ? 1 : 0;
         }
         return available;
     }
@@ -289,21 +282,11 @@ public class InputBuffer extends Reader
             }
             return false;
         }
-        // Checking for available data at the network level and registering for
-        // read can be done sequentially for HTTP/1.x and AJP as there is only
-        // ever a single thread processing the socket at any one time. However,
-        // for HTTP/2 there is one thread processing the connection and separate
-        // threads for each stream. For HTTP/2 the two operations have to be
-        // performed atomically else it is possible for the connection thread to
-        // read more data in to the buffer after the stream thread checks for
-        // available network data but before it registers for read.
-        if (availableInThisBuffer() > 0) {
-            return true;
+        boolean result = available() > 0;
+        if (!result) {
+            coyoteRequest.action(ActionCode.NB_READ_INTEREST, null);
         }
-
-        AtomicBoolean result = new AtomicBoolean();
-        coyoteRequest.action(ActionCode.NB_READ_INTEREST, result);
-        return result.get();
+        return result;
     }
 
 
@@ -332,13 +315,9 @@ public class InputBuffer extends Reader
             state = BYTE_STATE;
         }
 
-        try {
-            return coyoteRequest.doRead(this);
-        } catch (IOException ioe) {
-            // An IOException on a read is almost always due to
-            // the remote client aborting the request.
-            throw new ClientAbortException(ioe);
-        }
+        int result = coyoteRequest.doRead(this);
+
+        return result;
     }
 
 

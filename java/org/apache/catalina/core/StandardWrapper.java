@@ -920,26 +920,14 @@ public class StandardWrapper extends ContainerBase
      */
     @Override
     public String findSecurityReference(String name) {
-        String reference = null;
 
         referencesLock.readLock().lock();
         try {
-            reference = references.get(name);
+            return references.get(name);
         } finally {
             referencesLock.readLock().unlock();
         }
 
-        // If not specified on the Wrapper, check the Context
-        if (getParent() instanceof Context) {
-            Context context = (Context) getParent();
-            if (reference != null) {
-                reference = context.findRoleMapping(reference);
-            } else {
-                reference = context.findRoleMapping(name);
-            }
-        }
-
-        return reference;
     }
 
 
@@ -1000,9 +988,11 @@ public class StandardWrapper extends ContainerBase
 
             try {
                 jspMonitorON = new ObjectName(oname.toString());
-                Registry.getRegistry(null, null).registerComponent(instance, jspMonitorON, null);
-            } catch (Exception ex) {
-                log.warn(sm.getString("standardWrapper.jspMonitorError", instance));
+                Registry.getRegistry(null, null)
+                    .registerComponent(instance, jspMonitorON, null);
+            } catch( Exception ex ) {
+                log.info("Error registering JSP monitoring with jmx " +
+                         instance);
             }
         }
     }
@@ -1144,7 +1134,7 @@ public class StandardWrapper extends ContainerBase
             throw f;
         } catch (Throwable f) {
             ExceptionUtils.handleThrowable(f);
-            getServletContext().log(sm.getString("standardWrapper.initException", getName()), f);
+            getServletContext().log("StandardWrapper.Throwable", f );
             // If the servlet wanted to be unavailable it would have
             // said so, so do not call unavailable(null).
             throw new ServletException

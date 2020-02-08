@@ -18,7 +18,6 @@ package org.apache.juli;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.Writer;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -39,6 +38,7 @@ import java.util.logging.LogRecord;
  */
 public class OneLineFormatter extends Formatter {
 
+    private static final String ST_SEP = System.lineSeparator() + " ";
     private static final String UNKNOWN_THREAD_NAME = "Unknown thread with ID ";
     private static final Object threadMxBeanLock = new Object();
     private static volatile ThreadMXBean threadMxBean = null;
@@ -85,9 +85,8 @@ public class OneLineFormatter extends Formatter {
      * @param timeFormat The format to use using the
      *                   {@link java.text.SimpleDateFormat} syntax
      */
-    public void setTimeFormat(final String timeFormat) {
-        final DateFormatCache globalDateCache =
-                new DateFormatCache(globalCacheSize, timeFormat, null);
+    public void setTimeFormat(String timeFormat) {
+        DateFormatCache globalDateCache = new DateFormatCache(globalCacheSize, timeFormat, null);
         localDateCache = new ThreadLocal<DateFormatCache>() {
             @Override
             protected DateFormatCache initialValue() {
@@ -140,17 +139,18 @@ public class OneLineFormatter extends Formatter {
         sb.append(' ');
         sb.append(formatMessage(record));
 
-        // New line for next record
-        sb.append(System.lineSeparator());
-
         // Stack trace
         if (record.getThrown() != null) {
+            sb.append(ST_SEP);
             StringWriter sw = new StringWriter();
-            PrintWriter pw = new IndentingPrintWriter(sw);
+            PrintWriter pw = new PrintWriter(sw);
             record.getThrown().printStackTrace(pw);
             pw.close();
             sb.append(sw.getBuffer());
         }
+
+        // New line for next record
+        sb.append(System.lineSeparator());
 
         return sb.toString();
     }
@@ -230,24 +230,6 @@ public class OneLineFormatter extends Formatter {
         @Override
         protected boolean removeEldestEntry(Entry<Integer, String> eldest) {
             return (size() > cacheSize);
-        }
-    }
-
-
-    /*
-     * Minimal implementation to indent the printing of stack traces. This
-     * implementation depends on Throwable using WrappedPrintWriter.
-     */
-    private static class IndentingPrintWriter extends PrintWriter {
-
-        public IndentingPrintWriter(Writer out) {
-            super(out);
-        }
-
-        @Override
-        public void println(Object x) {
-            super.print('\t');
-            super.println(x);
         }
     }
 }

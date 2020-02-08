@@ -110,10 +110,7 @@ public class StringManager {
         String str = null;
 
         try {
-            // Avoid NPE if bundle is null and treat it like an MRE
-            if (bundle != null) {
-                str = bundle.getString(key);
-            }
+            str = bundle.getString(key);
         } catch(MissingResourceException mre) {
             //bad: shouldn't mask an exception the following way:
             //   str = "[cannot find message associated with key '" + key + "' due to " + mre + "]";

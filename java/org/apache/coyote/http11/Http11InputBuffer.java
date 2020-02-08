@@ -22,13 +22,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import org.apache.coyote.CloseNowException;
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.MessageBytes;
-import org.apache.tomcat.util.http.HeaderUtil;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.net.ApplicationBufferHandler;
@@ -66,7 +64,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
     private final MimeHeaders headers;
 
 
-    private final boolean rejectIllegalHeader;
+    private final boolean rejectIllegalHeaderName;
 
     /**
      * State.
@@ -152,13 +150,13 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
     // ----------------------------------------------------------- Constructors
 
     public Http11InputBuffer(Request request, int headerBufferSize,
-            boolean rejectIllegalHeader, HttpParser httpParser) {
+            boolean rejectIllegalHeaderName, HttpParser httpParser) {
 
         this.request = request;
         headers = request.getMimeHeaders();
 
         this.headerBufferSize = headerBufferSize;
-        this.rejectIllegalHeader = rejectIllegalHeader;
+        this.rejectIllegalHeaderName = rejectIllegalHeaderName;
         this.httpParser = httpParser;
 
         filterLibrary = new InputFilter[0];
@@ -620,10 +618,8 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
         }
 
         try {
-            if (wrapper.hasDataToRead()) {
-                fill(false);
-                available = byteBuffer.remaining();
-            }
+            fill(false);
+            available = byteBuffer.remaining();
         } catch (IOException ioe) {
             if (log.isDebugEnabled()) {
                 log.debug(sm.getString("iib.available.readFail"), ioe);
@@ -730,13 +726,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
             byteBuffer.position(byteBuffer.limit());
         }
         byteBuffer.limit(byteBuffer.capacity());
-        SocketWrapperBase<?> socketWrapper = this.wrapper;
-        int nRead = -1;
-        if (socketWrapper != null) {
-            nRead = socketWrapper.read(block, byteBuffer);
-        } else {
-            throw new CloseNowException(sm.getString("iib.eof.error"));
-        }
+        int nRead = wrapper.read(block, byteBuffer);
         byteBuffer.limit(byteBuffer.position()).reset();
         if (nRead > 0) {
             return true;
@@ -762,8 +752,6 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
         //
 
         byte chr = 0;
-        byte prevChr = 0;
-
         while (headerParsePos == HeaderParsePosition.HEADER_START) {
 
             // Read new bytes if needed
@@ -774,29 +762,22 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                 }
             }
 
-            prevChr = chr;
             chr = byteBuffer.get();
 
-            if (chr == Constants.CR && prevChr != Constants.CR) {
-                // Possible start of CRLF - process the next byte.
-            } else if (prevChr == Constants.CR && chr == Constants.LF) {
+            if (chr == Constants.CR) {
+                // Skip
+            } else if (chr == Constants.LF) {
                 return HeaderParseStatus.DONE;
             } else {
-                if (prevChr == 0) {
-                    // Must have only read one byte
-                    byteBuffer.position(byteBuffer.position() - 1);
-                } else {
-                    // Must have read two bytes (first was CR, second was not LF)
-                    byteBuffer.position(byteBuffer.position() - 2);
-                }
+                byteBuffer.position(byteBuffer.position() - 1);
                 break;
             }
+
         }
 
         if (headerParsePos == HeaderParsePosition.HEADER_START) {
             // Mark the current buffer position
             headerData.start = byteBuffer.position();
-            headerData.lineStart = headerData.start;
             headerParsePos = HeaderParsePosition.HEADER_NAME;
         }
 
@@ -887,22 +868,11 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                         }
                     }
 
-                    prevChr = chr;
                     chr = byteBuffer.get();
                     if (chr == Constants.CR) {
-                        // Possible start of CRLF - process the next byte.
-                    } else if (prevChr == Constants.CR && chr == Constants.LF) {
+                        // Skip
+                    } else if (chr == Constants.LF) {
                         eol = true;
-                    } else if (prevChr == Constants.CR) {
-                        // Invalid value
-                        // Delete the header (it will be the most recent one)
-                        headers.removeHeader(headers.size() - 1);
-                        return skipLine();
-                    } else if (chr != Constants.HT && HttpParser.isControl(chr)) {
-                        // Invalid value
-                        // Delete the header (it will be the most recent one)
-                        headers.removeHeader(headers.size() - 1);
-                        return skipLine();
                     } else if (chr == Constants.SP || chr == Constants.HT) {
                         byteBuffer.put(headerData.realPos, chr);
                         headerData.realPos++;
@@ -954,9 +924,6 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
         headerParsePos = HeaderParsePosition.HEADER_SKIPLINE;
         boolean eol = false;
 
-        byte chr = 0;
-        byte prevChr = 0;
-
         // Reading bytes until the end of the line
         while (!eol) {
 
@@ -968,21 +935,21 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
             }
 
             int pos = byteBuffer.position();
-            prevChr = chr;
-            chr = byteBuffer.get();
+            byte chr = byteBuffer.get();
             if (chr == Constants.CR) {
                 // Skip
-            } else if (prevChr == Constants.CR && chr == Constants.LF) {
+            } else if (chr == Constants.LF) {
                 eol = true;
             } else {
                 headerData.lastSignificantChar = pos;
             }
         }
-        if (rejectIllegalHeader || log.isDebugEnabled()) {
+        if (rejectIllegalHeaderName || log.isDebugEnabled()) {
             String message = sm.getString("iib.invalidheader",
-                    HeaderUtil.toPrintableString(byteBuffer.array(), headerData.lineStart,
-                            headerData.lastSignificantChar - headerData.lineStart + 1));
-            if (rejectIllegalHeader) {
+                    new String(byteBuffer.array(), headerData.start,
+                            headerData.lastSignificantChar - headerData.start + 1,
+                            StandardCharsets.ISO_8859_1));
+            if (rejectIllegalHeaderName) {
                 throw new IllegalArgumentException(message);
             }
             log.debug(message);
@@ -1042,10 +1009,6 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
 
     private static class HeaderParseData {
         /**
-         * The first character of the header line.
-         */
-        int lineStart = 0;
-        /**
          * When parsing header name: first character of the header.<br>
          * When skipping broken header line: first character of the header.<br>
          * When parsing header value: first character after ':'.
@@ -1073,7 +1036,6 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
          */
         MessageBytes headerValue = null;
         public void recycle() {
-            lineStart = 0;
             start = 0;
             realPos = 0;
             lastSignificantChar = 0;

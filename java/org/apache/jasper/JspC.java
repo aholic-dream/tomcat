@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.concurrent.Callable;
@@ -426,7 +427,8 @@ public class JspC extends Task implements Options {
                 setThreadCount(nextArg());
             } else {
                 if (tok.startsWith("-")) {
-                    throw new JasperException(Localizer.getMessage("jspc.error.unknownOption", tok));
+                    throw new JasperException("Unrecognized option: " + tok +
+                        ".  Use -help for help.");
                 }
                 if (!fullstop) {
                     argPos--;
@@ -996,11 +998,10 @@ public class JspC extends Task implements Options {
                 newThreadCount = Integer.parseInt(threadCount);
             }
         } catch (NumberFormatException e) {
-            throw new BuildException(Localizer.getMessage("jspc.error.parseThreadCount", threadCount));
+            throw new BuildException("Couldn't parse thread count: " + threadCount);
         }
         if (newThreadCount < 1) {
-            throw new BuildException(Localizer.getMessage(
-                    "jspc.error.minThreadCount", Integer.valueOf(newThreadCount)));
+            throw new BuildException("There must be at least one thread: " + newThreadCount);
         }
         this.threadCount = newThreadCount;
     }
@@ -1397,47 +1398,40 @@ public class JspC extends Task implements Options {
      * Locate all jsp files in the webapp. Used if no explicit
      * jsps are specified.
      * @param base Base path
-     *
-     * @deprecated This will be removed in Tomcat 10. Use {@link #scanFiles()}
      */
-    @Deprecated
-    public void scanFiles(File base) {
-        scanFiles();
-    }
+    public void scanFiles( File base ) {
+        Stack<String> dirs = new Stack<>();
+        dirs.push(base.toString());
 
-
-    /**
-     * Locate all jsp files in the webapp. Used if no explicit jsps are
-     * specified. Scan is performed via the ServletContext and will include any
-     * JSPs located in resource JARs.
-     */
-    public void scanFiles() {
         // Make sure default extensions are always included
         if ((getExtensions() == null) || (getExtensions().size() < 2)) {
             addExtension("jsp");
             addExtension("jspx");
         }
 
-        scanFilesInternal("/");
-    }
-
-
-    private void scanFilesInternal(String input) {
-        Set<String> paths = context.getResourcePaths(input);
-        for (String path : paths) {
-            if (path.endsWith("/")) {
-                scanFilesInternal(path);
-            } else if (jspConfig.isJspPage(path)) {
-                pages.add(path);
-            } else {
-                String ext = path.substring(path.lastIndexOf('.') + 1);
-                if (extensions.contains(ext)) {
-                    pages.add(path);
+        while (!dirs.isEmpty()) {
+            String s = dirs.pop();
+            File f = new File(s);
+            if (f.exists() && f.isDirectory()) {
+                String[] files = f.list();
+                String ext;
+                for (int i = 0; (files != null) && i < files.length; i++) {
+                    File f2 = new File(s, files[i]);
+                    if (f2.isDirectory()) {
+                        dirs.push(f2.getPath());
+                    } else {
+                        String path = f2.getPath();
+                        String uri = path.substring(uriRoot.length());
+                        ext = files[i].substring(files[i].lastIndexOf('.') +1);
+                        if (getExtensions().contains(ext) ||
+                            jspConfig.isJspPage(uri)) {
+                            pages.add(path);
+                        }
+                    }
                 }
             }
         }
     }
-
 
     /**
      * Executes the compilation.
@@ -1480,15 +1474,20 @@ public class JspC extends Task implements Options {
 
             // No explicit pages, we'll process all .jsp in the webapp
             if (pages.size() == 0) {
-                scanFiles();
-            } else {
-                // Ensure pages are all relative to the uriRoot.
-                // Those that are not will trigger an error later. The error
-                // could be detected earlier but isn't to support the use case
-                // when failFast is not used.
-                for (int i = 0; i < pages.size(); i++) {
-                    String nextjsp = pages.get(i);
+                scanFiles(uriRootF);
+            }
 
+            initWebXml();
+
+            int errorCount = 0;
+            long start = System.currentTimeMillis();
+
+            ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
+            ExecutorCompletionService<Void> service = new ExecutorCompletionService<>(threadPool);
+            try {
+                int pageCount = pages.size();
+
+                for (String nextjsp : pages) {
                     File fjsp = new File(nextjsp);
                     if (!fjsp.isAbsolute()) {
                         fjsp = new File(uriRootF, nextjsp);
@@ -1507,20 +1506,6 @@ public class JspC extends Task implements Options {
                     if (nextjsp.startsWith("." + File.separatorChar)) {
                         nextjsp = nextjsp.substring(2);
                     }
-                    pages.set(i, nextjsp);
-                }
-            }
-
-            initWebXml();
-
-            int errorCount = 0;
-            long start = System.currentTimeMillis();
-
-            ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
-            ExecutorCompletionService<Void> service = new ExecutorCompletionService<>(threadPool);
-            try {
-                int pageCount = pages.size();
-                for (String nextjsp : pages) {
                     service.submit(new ProcessFile(nextjsp));
                 }
                 JasperException reportableError = null;
@@ -1541,7 +1526,7 @@ public class JspC extends Task implements Options {
                             }
                         } else {
                             errorCount++;
-                            log.error(Localizer.getMessage("jspc.error.compilation"), e);
+                            log.error(e.getMessage());
                         }
                     } catch (InterruptedException e) {
                         // Ignore
@@ -1558,8 +1543,7 @@ public class JspC extends Task implements Options {
             String msg = Localizer.getMessage("jspc.generation.result",
                     Integer.toString(errorCount), Long.toString(time));
             if (failOnError && errorCount > 0) {
-                System.out.println(Localizer.getMessage(
-                        "jspc.errorCount", Integer.valueOf(errorCount)));
+                System.out.println("Error Count: " + errorCount);
                 throw new BuildException(msg);
             } else {
                 log.info(msg);
@@ -1755,7 +1739,8 @@ public class JspC extends Task implements Options {
                         String ext=libs[i].substring( libs[i].length() - 4 );
                         if (! ".jar".equalsIgnoreCase(ext)) {
                             if (".tld".equalsIgnoreCase(ext)) {
-                                log.warn(Localizer.getMessage("jspc.warning.tldInWebInfLib"));
+                                log.warn("TLD files should not be placed in "
+                                         + "/WEB-INF/lib");
                             }
                             continue;
                         }
@@ -1784,7 +1769,7 @@ public class JspC extends Task implements Options {
     /**
      * Find the WEB-INF dir by looking up in the directory tree.
      * This is used if no explicit docbase is set, but only files.
-     *
+     * XXX Maybe we should require the docbase.
      * @param f The path from which it will start looking
      */
     protected void locateUriRoot( File f ) {
@@ -1819,7 +1804,8 @@ public class JspC extends Task implements Options {
                     }
 
                     // If there is no acceptable candidate, uriRoot will
-                    // remain null.
+                    // remain null to indicate to the CompilerContext to
+                    // use the current working/user dir.
                 }
 
                 if (uriRoot != null) {
@@ -1828,7 +1814,9 @@ public class JspC extends Task implements Options {
                 }
             }
         } catch (IOException ioe) {
-            // Missing uriRoot will be handled in the caller.
+            // since this is an optional default and a null value
+            // for uriRoot has a non-error meaning, we can just
+            // pass straight through
         }
     }
 

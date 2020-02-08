@@ -129,7 +129,7 @@ public class MultipointBioSender extends AbstractSender implements MultiPointSen
     }
 
     @Override
-    protected void finalize() throws Throwable {
+    public void finalize() throws Throwable {
         try {
             disconnect();
         } catch (Exception e) {

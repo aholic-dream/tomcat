@@ -190,7 +190,7 @@ public class BasicManagedDataSource extends BasicDataSource {
             }
 
             try {
-                xaDataSourceInstance = (XADataSource) xaDataSourceClass.getConstructor().newInstance();
+                xaDataSourceInstance = (XADataSource) xaDataSourceClass.newInstance();
             } catch (final Exception t) {
                 final String message = "Cannot create XA data source of class '" + xaDataSource + "'";
                 throw new SQLException(message, t);
@@ -240,7 +240,7 @@ public class BasicManagedDataSource extends BasicDataSource {
             connectionFactory.setMaxOpenPreparedStatements(getMaxOpenPreparedStatements());
             connectionFactory.setMaxConnLifetimeMillis(getMaxConnLifetimeMillis());
             connectionFactory.setRollbackOnReturn(getRollbackOnReturn());
-            connectionFactory.setAutoCommitOnReturn(getAutoCommitOnReturn());
+            connectionFactory.setEnableAutoCommitOnReturn(getEnableAutoCommitOnReturn());
             connectionFactory.setDefaultQueryTimeout(getDefaultQueryTimeout());
             connectionFactory.setFastFailValidation(getFastFailValidation());
             connectionFactory.setDisconnectionSqlCodes(getDisconnectionSqlCodes());

@@ -26,8 +26,8 @@ import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;
 import javax.websocket.DeploymentException;
 import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
 import javax.websocket.Extension;
-import javax.websocket.server.ServerEndpointConfig;
 
 import org.apache.coyote.http11.upgrade.InternalHttpUpgradeHandler;
 import org.apache.juli.logging.Log;
@@ -54,7 +54,7 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
     private SocketWrapperBase<?> socketWrapper;
 
     private Endpoint ep;
-    private ServerEndpointConfig serverEndpointConfig;
+    private EndpointConfig endpointConfig;
     private WsServerContainer webSocketContainer;
     private WsHandshakeRequest handshakeRequest;
     private List<Extension> negotiatedExtensions;
@@ -80,13 +80,13 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
     }
 
 
-    public void preInit(Endpoint ep, ServerEndpointConfig serverEndpointConfig,
+    public void preInit(Endpoint ep, EndpointConfig endpointConfig,
             WsServerContainer wsc, WsHandshakeRequest handshakeRequest,
             List<Extension> negotiatedExtensionsPhase2, String subProtocol,
             Transformation transformation, Map<String,String> pathParameters,
             boolean secure) {
         this.ep = ep;
-        this.serverEndpointConfig = serverEndpointConfig;
+        this.endpointConfig = endpointConfig;
         this.webSocketContainer = wsc;
         this.handshakeRequest = handshakeRequest;
         this.negotiatedExtensions = negotiatedExtensionsPhase2;
@@ -124,14 +124,14 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
                     handshakeRequest.getQueryString(),
                     handshakeRequest.getUserPrincipal(), httpSessionId,
                     negotiatedExtensions, subProtocol, pathParameters, secure,
-                    serverEndpointConfig);
+                    endpointConfig);
             wsFrame = new WsFrameServer(socketWrapper, wsSession, transformation,
                     applicationClassLoader);
             // WsFrame adds the necessary final transformations. Copy the
             // completed transformation chain to the remote end point.
             wsRemoteEndpointServer.setTransformation(wsFrame.getTransformation());
-            ep.onOpen(wsSession, serverEndpointConfig);
-            webSocketContainer.registerSession(serverEndpointConfig.getPath(), wsSession);
+            ep.onOpen(wsSession, endpointConfig);
+            webSocketContainer.registerSession(ep, wsSession);
         } catch (DeploymentException e) {
             throw new IllegalArgumentException(e);
         } finally {
@@ -178,7 +178,6 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
                 //$FALL-THROUGH$
             case DISCONNECT:
             case TIMEOUT:
-            case CONNECT_FAIL:
                 return SocketState.CLOSED;
 
         }
@@ -187,12 +186,6 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
         } else {
             return SocketState.CLOSED;
         }
-    }
-
-
-    @Override
-    public void timeoutAsync(long now) {
-        // NO-OP
     }
 
 

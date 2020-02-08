@@ -45,4 +45,5 @@ public final class Constants {
     public static final String DEFAULT_LOOKUP_JNDI_FACTORY = Package + ".LookupFactory";
 
     public static final String FACTORY = "factory";
+
 }

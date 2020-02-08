@@ -43,8 +43,7 @@ public final class RemoteHostValve extends RequestFilterValve {
     public void invoke(Request request, Response response) throws IOException, ServletException {
         String property;
         if (getAddConnectorPort()) {
-            property = request.getRequest().getRemoteHost() + ";" +
-                    request.getConnector().getPortWithOffset();
+            property = request.getRequest().getRemoteHost() + ";" + request.getConnector().getPort();
         } else {
             property = request.getRequest().getRemoteHost();
         }

@@ -108,7 +108,7 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
                 e = ExceptionUtils.unwrapInvocationTargetException(e);
                 ExceptionUtils.handleThrowable(e);
                 // Need to localize this.
-                log.warn(Localizer.getMessage("jsp.warning.engineOptionsClass", engineOptionsName), e);
+                log.warn("Failed to load engineOptionsClass", e);
                 // Use the default Options implementation
                 options = new EmbeddedServletOptions(config, context);
             }
@@ -124,7 +124,7 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
                     return;
                 }
             } catch (MalformedURLException e) {
-                throw new ServletException(Localizer.getMessage("jsp.error.no.jsp", jspFile), e);
+                throw new ServletException("cannot locate jsp file", e);
             }
             try {
                 if (SecurityUtil.isPackageProtectionEnabled()){
@@ -139,11 +139,11 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
                     serviceJspFile(null, null, jspFile, true);
                 }
             } catch (IOException e) {
-                throw new ServletException(Localizer.getMessage("jsp.error.precompilation", jspFile), e);
+                throw new ServletException("Could not precompile jsp: " + jspFile, e);
             } catch (PrivilegedActionException e) {
                 Throwable t = e.getCause();
                 if (t instanceof ServletException) throw (ServletException)t;
-                throw new ServletException(Localizer.getMessage("jsp.error.precompilation", jspFile), e);
+                throw new ServletException("Could not precompile jsp: " + jspFile, e);
             }
         }
 
@@ -269,8 +269,9 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
             // precompilation request can be ignored.
             return true;             // ?jsp_precompile=false
         } else {
-            throw new ServletException(Localizer.getMessage("jsp.error.precompilation.parameter",
-                    Constants.PRECOMPILE, value));
+            throw new ServletException("Cannot have request parameter " +
+                                       Constants.PRECOMPILE + " set to " +
+                                       value);
         }
 
     }

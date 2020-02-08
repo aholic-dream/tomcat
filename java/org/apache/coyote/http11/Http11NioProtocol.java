@@ -46,27 +46,12 @@ public class Http11NioProtocol extends AbstractHttp11JsseProtocol<NioChannel> {
 
     // -------------------- Pool setup --------------------
 
-    /**
-     * NO-OP.
-     *
-     * @param count Unused
-     *
-     * @deprecated This setter will be removed in Tomcat 10.
-     */
-    @Deprecated
     public void setPollerThreadCount(int count) {
+        ((NioEndpoint)getEndpoint()).setPollerThreadCount(count);
     }
 
-    /**
-     * Always returns 1.
-     *
-     * @return 1
-     *
-     * @deprecated This getter will be removed in Tomcat 10.
-     */
-    @Deprecated
     public int getPollerThreadCount() {
-        return 1;
+        return ((NioEndpoint)getEndpoint()).getPollerThreadCount();
     }
 
     public void setSelectorTimeout(long timeout) {

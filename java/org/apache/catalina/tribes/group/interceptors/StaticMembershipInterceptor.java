@@ -18,7 +18,6 @@ package org.apache.catalina.tribes.group.interceptors;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.ChannelException;
@@ -157,9 +156,8 @@ public class StaticMembershipInterceptor extends ChannelInterceptorBase
         if ( (Channel.SND_RX_SEQ&svc)==Channel.SND_RX_SEQ ) super.start(Channel.SND_RX_SEQ);
         if ( (Channel.SND_TX_SEQ&svc)==Channel.SND_TX_SEQ ) super.start(Channel.SND_TX_SEQ);
         final ChannelInterceptorBase base = this;
-        ScheduledExecutorService executor = getChannel().getUtilityExecutor();
         for (final Member member : members) {
-            Runnable r = new Runnable() {
+            Thread t = new Thread() {
                 @Override
                 public void run() {
                     base.memberAdded(member);
@@ -168,7 +166,7 @@ public class StaticMembershipInterceptor extends ChannelInterceptorBase
                     }
                 }
             };
-            executor.execute(r);
+            t.start();
         }
         super.start(svc & (~Channel.SND_RX_SEQ) & (~Channel.SND_TX_SEQ));
 

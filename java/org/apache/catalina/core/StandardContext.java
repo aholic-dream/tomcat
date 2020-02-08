@@ -116,7 +116,6 @@ import org.apache.tomcat.JarScanner;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.buf.StringUtils;
-import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.descriptor.XmlIdentifiers;
 import org.apache.tomcat.util.descriptor.web.ApplicationParameter;
 import org.apache.tomcat.util.descriptor.web.ErrorPage;
@@ -330,10 +329,8 @@ public class StandardContext extends ContainerBase
     /**
      * The "follow standard delegation model" flag that will be used to
      * configure our ClassLoader.
-     * Graal cannot actually load a class from the webapp classloader,
-     * so delegate by default.
      */
-    private boolean delegate = JreCompat.isGraalAvailable();
+    private boolean delegate = false;
 
 
     private boolean denyUncoveredHttpMethods;
@@ -746,12 +743,6 @@ public class StandardContext extends ContainerBase
     private boolean clearReferencesObjectStreamClassCaches = true;
 
     /**
-     * Should Tomcat attempt to clear references to classes loaded by this class
-     * loader from ThreadLocals?
-     */
-    private boolean clearReferencesThreadLocals = true;
-
-    /**
      * Should Tomcat skip the memory leak checks when the web application is
      * stopped as part of the process of shutting down the JVM?
      */
@@ -823,36 +814,8 @@ public class StandardContext extends ContainerBase
 
     private boolean allowMultipleLeadingForwardSlashInPath = false;
 
-    private final AtomicLong inProgressAsyncCount = new AtomicLong(0);
-
-    private boolean createUploadTargets = false;
-
 
     // ----------------------------------------------------- Context Properties
-
-    @Override
-    public void setCreateUploadTargets(boolean createUploadTargets) {
-        this.createUploadTargets = createUploadTargets;
-    }
-
-
-    @Override
-    public boolean getCreateUploadTargets() {
-        return createUploadTargets;
-    }
-
-
-    @Override
-    public void incrementInProgressAsyncCount() {
-        inProgressAsyncCount.incrementAndGet();
-    }
-
-
-    @Override
-    public void decrementInProgressAsyncCount() {
-        inProgressAsyncCount.decrementAndGet();
-    }
-
 
     @Override
     public void setAllowMultipleLeadingForwardSlashInPath(
@@ -1785,17 +1748,26 @@ public class StandardContext extends ContainerBase
     }
 
 
+    /**
+     * @return the document root for this Context.  This can be an absolute
+     * pathname, a relative pathname, or a URL.
+     */
     @Override
     public String getDocBase() {
         return this.docBase;
     }
 
 
+    /**
+     * Set the document root for this Context.  This can be an absolute
+     * pathname, a relative pathname, or a URL.
+     *
+     * @param docBase The new document root
+     */
     @Override
     public void setDocBase(String docBase) {
         this.docBase = docBase;
     }
-
 
     public String getJ2EEApplication() {
         return j2EEApplication;
@@ -1844,7 +1816,7 @@ public class StandardContext extends ContainerBase
                 try {
                     ((Lifecycle) oldLoader).stop();
                 } catch (LifecycleException e) {
-                    log.error(sm.getString("standardContext.setLoader.stop"), e);
+                    log.error("StandardContext.setLoader: stop: ", e);
                 }
             }
 
@@ -1856,7 +1828,7 @@ public class StandardContext extends ContainerBase
                 try {
                     ((Lifecycle) loader).start();
                 } catch (LifecycleException e) {
-                    log.error(sm.getString("standardContext.setLoader.start"), e);
+                    log.error("StandardContext.setLoader: start: ", e);
                 }
             }
         } finally {
@@ -1899,7 +1871,7 @@ public class StandardContext extends ContainerBase
                     ((Lifecycle) oldManager).stop();
                     ((Lifecycle) oldManager).destroy();
                 } catch (LifecycleException e) {
-                    log.error(sm.getString("standardContext.setManager.stop"), e);
+                    log.error("StandardContext.setManager: stop-destroy: ", e);
                 }
             }
 
@@ -1911,7 +1883,7 @@ public class StandardContext extends ContainerBase
                 try {
                     ((Lifecycle) manager).start();
                 } catch (LifecycleException e) {
-                    log.error(sm.getString("standardContext.setManager.start"), e);
+                    log.error("StandardContext.setManager: start: ", e);
                 }
             }
         } finally {
@@ -2054,7 +2026,7 @@ public class StandardContext extends ContainerBase
                 oldNamingResources.stop();
                 oldNamingResources.destroy();
             } catch (LifecycleException e) {
-                log.error(sm.getString("standardContext.namingResource.destroy.fail"), e);
+                log.warn("standardContext.namingResource.destroy.fail", e);
             }
         }
         if (namingResources != null) {
@@ -2062,7 +2034,7 @@ public class StandardContext extends ContainerBase
                 namingResources.init();
                 namingResources.start();
             } catch (LifecycleException e) {
-                log.error(sm.getString("standardContext.namingResource.init.fail"), e);
+                log.warn("standardContext.namingResource.init.fail", e);
             }
         }
     }
@@ -2725,20 +2697,6 @@ public class StandardContext extends ContainerBase
     }
 
 
-    public boolean getClearReferencesThreadLocals() {
-        return clearReferencesThreadLocals;
-    }
-
-
-    public void setClearReferencesThreadLocals(boolean clearReferencesThreadLocals) {
-        boolean oldClearReferencesThreadLocals = this.clearReferencesThreadLocals;
-        this.clearReferencesThreadLocals = clearReferencesThreadLocals;
-        support.firePropertyChange("clearReferencesThreadLocals",
-                oldClearReferencesThreadLocals,
-                this.clearReferencesThreadLocals);
-    }
-
-
     public boolean getSkipMemoryLeakChecksOnJvmShutdown() {
         return skipMemoryLeakChecksOnJvmShutdown;
     }
@@ -3289,7 +3247,7 @@ public class StandardContext extends ContainerBase
                 wrapper = (Wrapper) wrapperClass.getConstructor().newInstance();
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
-                log.error(sm.getString("standardContext.createWrapper.error"), t);
+                log.error("createWrapper", t);
                 return null;
             }
         } else {
@@ -3305,7 +3263,7 @@ public class StandardContext extends ContainerBase
                     wrapper.addLifecycleListener(listener);
                 } catch (Throwable t) {
                     ExceptionUtils.handleThrowable(t);
-                    log.error(sm.getString("standardContext.createWrapper.listenerError"), t);
+                    log.error("createWrapper", t);
                     return null;
                 }
             }
@@ -3320,7 +3278,7 @@ public class StandardContext extends ContainerBase
                     wrapper.addContainerListener(listener);
                 } catch (Throwable t) {
                     ExceptionUtils.handleThrowable(t);
-                    log.error(sm.getString("standardContext.createWrapper.containerListenerError"), t);
+                    log.error("createWrapper", t);
                     return null;
                 }
             }
@@ -5009,10 +4967,8 @@ public class StandardContext extends ContainerBase
                         getClearReferencesHttpClientKeepAliveThread());
                 setClassLoaderProperty("clearReferencesObjectStreamClassCaches",
                         getClearReferencesObjectStreamClassCaches());
-                setClassLoaderProperty("clearReferencesObjectStreamClassCaches",
-                        getClearReferencesObjectStreamClassCaches());
-                setClassLoaderProperty("clearReferencesThreadLocals",
-                        getClearReferencesThreadLocals());
+                setClassLoaderProperty("skipMemoryLeakChecksOnJvmShutdown",
+                        getSkipMemoryLeakChecksOnJvmShutdown());
 
                 // By calling unbindThread and bindThread in a row, we setup the
                 // current Thread CCL to be the webapp classloader
@@ -5072,11 +5028,11 @@ public class StandardContext extends ContainerBase
                                 Boolean.valueOf((getCluster() != null)),
                                 Boolean.valueOf(distributable)));
                     }
-                    if ((getCluster() != null) && distributable) {
+                    if ( (getCluster() != null) && distributable) {
                         try {
                             contextManager = getCluster().createManager(getName());
                         } catch (Exception ex) {
-                            log.error(sm.getString("standardContext.cluster.managerError"), ex);
+                            log.error("standardContext.clusterFail", ex);
                             ok = false;
                         }
                     } else {
@@ -5112,7 +5068,14 @@ public class StandardContext extends ContainerBase
 
             if (ok ) {
                 if (getInstanceManager() == null) {
-                    setInstanceManager(createInstanceManager());
+                    javax.naming.Context context = null;
+                    if (isUseNaming() && getNamingContextListener() != null) {
+                        context = getNamingContextListener().getEnvContext();
+                    }
+                    Map<String, Map<String, String>> injectionMap = buildInjectionMap(
+                            getIgnoreAnnotations() ? new NamingResourcesImpl(): getNamingResources());
+                    setInstanceManager(new DefaultInstanceManager(context,
+                            injectionMap, this, this.getClass().getClassLoader()));
                 }
                 getServletContext().setAttribute(
                         InstanceManager.class.getName(), getInstanceManager());
@@ -5244,18 +5207,6 @@ public class StandardContext extends ContainerBase
         }
     }
 
-    @Override
-    public InstanceManager createInstanceManager() {
-        javax.naming.Context context = null;
-        if (isUseNaming() && getNamingContextListener() != null) {
-            context = getNamingContextListener().getEnvContext();
-        }
-        Map<String, Map<String, String>> injectionMap = buildInjectionMap(
-                getIgnoreAnnotations() ? new NamingResourcesImpl(): getNamingResources());
-       return new DefaultInstanceManager(context, injectionMap,
-               this, this.getClass().getClassLoader());
-    }
-
     private Map<String, Map<String, String>> buildInjectionMap(NamingResourcesImpl namingResources) {
         Map<String, Map<String, String>> injectionMap = new HashMap<>();
         for (Injectable resource: namingResources.findLocalEjbs()) {
@@ -5352,22 +5303,6 @@ public class StandardContext extends ContainerBase
             broadcaster.sendNotification(notification);
         }
 
-        // Context has been removed from Mapper at this point (so no new
-        // requests will be mapped) but is still available.
-
-        // Give the in progress async requests a chance to complete
-        long limit = System.currentTimeMillis() + unloadDelay;
-        while (inProgressAsyncCount.get() > 0 && System.currentTimeMillis() < limit) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                log.info(sm.getString("standardContext.stop.asyncWaitInterrupted"), e);
-                break;
-            }
-        }
-
-        // Once the state is set to STOPPING, the Context will report itself as
-        // not available and any in progress async requests will timeout
         setState(LifecycleState.STOPPING);
 
         // Binding thread
@@ -6143,7 +6078,9 @@ public class StandardContext extends ContainerBase
                         urlPattern.charAt(urlPattern.length()-2) != '/')) ||
                     urlPattern.startsWith("*.") && urlPattern.length() > 2 &&
                         urlPattern.lastIndexOf('.') > 1) {
-                log.info(sm.getString("standardContext.suspiciousUrl", urlPattern, getName()));
+                log.info("Suspicious url pattern: \"" + urlPattern + "\"" +
+                        " in context [" + getName() + "] - see" +
+                        " sections 12.1 and 12.2 of the Servlet specification");
             }
         }
     }

@@ -447,7 +447,7 @@ public abstract class HttpServlet extends GenericServlet {
 
     /**
      * Called by the server (via the <code>service</code> method)
-     * to allow a servlet to handle an OPTIONS request.
+     * to allow a servlet to handle a OPTIONS request.
      *
      * The OPTIONS request determines which HTTP methods
      * the server supports and
@@ -736,7 +736,7 @@ public abstract class HttpServlet extends GenericServlet {
             request = (HttpServletRequest) req;
             response = (HttpServletResponse) res;
         } catch (ClassCastException e) {
-            throw new ServletException(lStrings.getString("http.non_http"));
+            throw new ServletException("non-HTTP request or response");
         }
         service(request, response);
     }
@@ -758,7 +758,7 @@ class NoBodyResponse extends HttpServletResponseWrapper {
     // file private
     NoBodyResponse(HttpServletResponse r) {
         super(r);
-        noBody = new NoBodyOutputStream(this);
+        noBody = new NoBodyOutputStream();
     }
 
     // file private
@@ -847,13 +847,11 @@ class NoBodyOutputStream extends ServletOutputStream {
     private static final ResourceBundle lStrings =
         ResourceBundle.getBundle(LSTRING_FILE);
 
-    private final HttpServletResponse response;
-    private boolean flushed = false;
     private int contentLength = 0;
 
     // file private
-    NoBodyOutputStream(HttpServletResponse response) {
-        this.response = response;
+    NoBodyOutputStream() {
+        // NOOP
     }
 
     // file private
@@ -862,9 +860,8 @@ class NoBodyOutputStream extends ServletOutputStream {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(int b) {
         contentLength++;
-        checkCommit();
     }
 
     @Override
@@ -885,7 +882,6 @@ class NoBodyOutputStream extends ServletOutputStream {
         }
 
         contentLength += len;
-        checkCommit();
     }
 
     @Override
@@ -897,12 +893,5 @@ class NoBodyOutputStream extends ServletOutputStream {
     @Override
     public void setWriteListener(javax.servlet.WriteListener listener) {
         // TODO SERVLET 3.1
-    }
-
-    private void checkCommit() throws IOException {
-        if (!flushed && contentLength > response.getBufferSize()) {
-            response.flushBuffer();
-            flushed = true;
-        }
     }
 }

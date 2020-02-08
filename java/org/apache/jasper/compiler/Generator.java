@@ -21,7 +21,6 @@ import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.DateFormat;
@@ -48,7 +47,6 @@ import javax.servlet.jsp.tagext.TagInfo;
 import javax.servlet.jsp.tagext.TagVariableInfo;
 import javax.servlet.jsp.tagext.VariableInfo;
 
-import org.apache.el.util.JreCompat;
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
@@ -1364,19 +1362,14 @@ class Generator {
                     } else {
                         canonicalName = klass;
                     }
-                    // Check that there is a 0 arg constructor
-                    Constructor<?> constructor = bean.getConstructor(new Class[] {});
-                    // Check the bean is public, not an interface, not abstract
-                    // and (for Java 9+) in an exported module
                     int modifiers = bean.getModifiers();
-                    JreCompat jreCompat = JreCompat.getInstance();
-                    if (!Modifier.isPublic(modifiers) ||
-                            Modifier.isInterface(modifiers) ||
-                            Modifier.isAbstract(modifiers) ||
-                            !jreCompat.canAcccess(null, constructor) ) {
-                        throw new Exception(Localizer.getMessage("jsp.error.invalid.bean",
-                                Integer.valueOf(modifiers)));
+                    if (!Modifier.isPublic(modifiers)
+                            || Modifier.isInterface(modifiers)
+                            || Modifier.isAbstract(modifiers)) {
+                        throw new Exception("Invalid bean class modifier");
                     }
+                    // Check that there is a 0 arg constructor
+                    bean.getConstructor(new Class[] {});
                     // At compile time, we have determined that the bean class
                     // exists, with a public zero constructor, new() can be
                     // used for bean instantiation.
@@ -3273,18 +3266,12 @@ class Generator {
         }
 
         /*
-         * @param c
-         *              The target class to which to coerce the given string
-         * @param s
-         *              The string value
-         * @param attrName
-         *              The name of the attribute whose value is being supplied
-         * @param propEditorClass
-         *              The property editor for the given attribute
-         * @param isNamedAttribute
-         *              true if the given attribute is a named attribute (that
-         *              is, specified using the jsp:attribute standard action),
-         *              and false otherwise
+         * @param c The target class to which to coerce the given string @param
+         * s The string value @param attrName The name of the attribute whose
+         * value is being supplied @param propEditorClass The property editor
+         * for the given attribute @param isNamedAttribute true if the given
+         * attribute is a named attribute (that is, specified using the
+         * jsp:attribute standard action), and false otherwise
          */
         private String convertString(Class<?> c, String s, String attrName,
                 Class<?> propEditorClass, boolean isNamedAttribute) {
@@ -3498,7 +3485,11 @@ class Generator {
         } else if (n instanceof Node.NamedAttribute) {
             ci = ((Node.NamedAttribute) n).getChildInfo();
         } else {
-            throw new JasperException(Localizer.getMessage("jsp.error.internal.unexpectedNodeType"));
+            // Cannot access err since this method is static, but at
+            // least flag an error.
+            throw new JasperException("Unexpected Node Type");
+            // err.getString(
+            // "jsp.error.internal.unexpected_node_type" ) );
         }
 
         if (ci.hasUseBean()) {
@@ -3701,8 +3692,8 @@ class Generator {
         String className = tagInfo.getTagClassName();
         int lastIndex = className.lastIndexOf('.');
         if (lastIndex != -1) {
-            String packageName = className.substring(0, lastIndex);
-            genPreamblePackage(packageName);
+            String pkgName = className.substring(0, lastIndex);
+            genPreamblePackage(pkgName);
             className = className.substring(lastIndex + 1);
         }
 

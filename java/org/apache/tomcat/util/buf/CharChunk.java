@@ -165,7 +165,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
     // -------------------- Adding data to the buffer --------------------
 
-    public void append(char c) throws IOException {
+    public void append(char b) throws IOException {
         makeSpace(1);
         int limit = getLimitInternal();
 
@@ -173,7 +173,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
         if (end >= limit) {
             flushBuffer();
         }
-        buff[end++] = c;
+        buff[end++] = b;
     }
 
 
@@ -353,8 +353,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     public void flushBuffer() throws IOException {
         // assert out!=null
         if (out == null) {
-            throw new IOException(sm.getString("chunk.overflow",
-                    Integer.valueOf(getLimit()), Integer.valueOf(buff.length)));
+            throw new IOException("Buffer overflow, no sink " + getLimit() + " " + buff.length);
         }
         out.realWriteChars(buff, start, end - start);
         end = start;

@@ -18,6 +18,9 @@
 package org.apache.catalina.tribes.membership.cloud;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import javax.management.ObjectName;
 
@@ -25,22 +28,20 @@ import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.MembershipProvider;
 import org.apache.catalina.tribes.MembershipService;
 import org.apache.catalina.tribes.jmx.JmxRegistry;
+import org.apache.catalina.tribes.membership.Constants;
 import org.apache.catalina.tribes.membership.MemberImpl;
 import org.apache.catalina.tribes.membership.MembershipServiceBase;
 import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
-public class CloudMembershipService extends MembershipServiceBase
-        implements CloudMembershipServiceMBean {
-
+public class CloudMembershipService extends MembershipServiceBase {
     private static final Log log = LogFactory.getLog(CloudMembershipService.class);
-    protected static final StringManager sm = StringManager.getManager(CloudMembershipService.class);
+    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
     public static final String MEMBERSHIP_PROVIDER_CLASS_NAME = "membershipProviderClassName";
     private static final String KUBE = "kubernetes";
     private static final String KUBE_PROVIDER_CLASS = "org.apache.catalina.tribes.membership.cloud.KubernetesMembershipProvider";
-    protected static final byte[] INITIAL_ID = new byte[16];
 
     private MembershipProvider membershipProvider;
     private MemberImpl localMember;
@@ -105,8 +106,7 @@ public class CloudMembershipService extends MembershipServiceBase
             if (log.isDebugEnabled()) {
                 log.debug("Using membershipProvider: " + provider);
             }
-            membershipProvider =
-                    (MembershipProvider) Class.forName(provider).getConstructor().newInstance();
+            membershipProvider = (MembershipProvider) Class.forName(provider).newInstance();
             membershipProvider.setMembershipListener(this);
             membershipProvider.setMembershipService(this);
             membershipProvider.init(properties);
@@ -146,8 +146,7 @@ public class CloudMembershipService extends MembershipServiceBase
     @Override
     public void setLocalMemberProperties(String listenHost, int listenPort, int securePort, int udpPort) {
         if (log.isDebugEnabled()) {
-            log.debug(String.format("setLocalMemberProperties(%s, %d, %d, %d)", listenHost,
-                    Integer.valueOf(listenPort), Integer.valueOf(securePort), Integer.valueOf(udpPort)));
+            log.debug(String.format("setLocalMemberProperties(%s, %d, %d, %d)", listenHost, listenPort, securePort, udpPort));
         }
         properties.setProperty("tcpListenHost", listenHost);
         properties.setProperty("tcpListenPort", String.valueOf(listenPort));
@@ -172,7 +171,13 @@ public class CloudMembershipService extends MembershipServiceBase
 
         if (localMember == null) {
             localMember = new MemberImpl();
-            localMember.setUniqueId(INITIAL_ID);
+            try {
+                // Set localMember unique ID to md5 hash of hostname
+                localMember.setUniqueId(MessageDigest.getInstance("md5")
+                        .digest(InetAddress.getLocalHost().getHostName().getBytes()));
+            } catch (NoSuchAlgorithmException e) {
+                throw new IOException(e);
+            }
             localMember.setLocal(true);
         }
         localMember.setHostname(host);
@@ -207,30 +212,4 @@ public class CloudMembershipService extends MembershipServiceBase
         this.membershipProvider = memberProvider;
     }
 
-    @Override
-    public int getConnectTimeout() {
-        return Integer.parseInt(properties.getProperty("connectTimeout", "1000"));
-    }
-
-    public void setConnectTimeout(int connectTimeout) {
-        properties.setProperty("connectTimeout", String.valueOf(connectTimeout));
-    }
-
-    @Override
-    public int getReadTimeout() {
-        return Integer.parseInt(properties.getProperty("readTimeout", "1000"));
-    }
-
-    public void setReadTimeout(int readTimeout) {
-        properties.setProperty("readTimeout", String.valueOf(readTimeout));
-    }
-
-    @Override
-    public long getExpirationTime() {
-        return Long.parseLong(properties.getProperty("expirationTime", "5000"));
-    }
-
-    public void setExpirationTime(long expirationTime) {
-        properties.setProperty("expirationTime", String.valueOf(expirationTime));
-    }
 }

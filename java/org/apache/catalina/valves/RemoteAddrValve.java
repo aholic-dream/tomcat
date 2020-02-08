@@ -45,8 +45,7 @@ public final class RemoteAddrValve extends RequestFilterValve {
     public void invoke(Request request, Response response) throws IOException, ServletException {
         String property;
         if (getAddConnectorPort()) {
-            property = request.getRequest().getRemoteAddr() + ";" +
-                    request.getConnector().getPortWithOffset();
+            property = request.getRequest().getRemoteAddr() + ";" + request.getConnector().getPort();
         } else {
             property = request.getRequest().getRemoteAddr();
         }

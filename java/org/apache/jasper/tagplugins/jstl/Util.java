@@ -35,7 +35,6 @@ import javax.servlet.jsp.JspTagException;
 import javax.servlet.jsp.PageContext;
 
 import org.apache.jasper.Constants;
-import org.apache.jasper.compiler.Localizer;
 
 /**
  * Util contains some often used consts, static methods and embedded class
@@ -91,11 +90,11 @@ public class Util {
     }
 
     /**
-     * Returns <code>true</code> if our current URL is absolute,
-     * <code>false</code> otherwise.
+     * Returns <tt>true</tt> if our current URL is absolute,
+     * <tt>false</tt> otherwise.
      * taken from org.apache.taglibs.standard.tag.common.core.ImportSupport
      * @param url The URL
-     * @return <code>true</code> if the URL is absolute
+     * @return <tt>true</tt> if the URL is absolute
      */
     public static boolean isAbsoluteUrl(String url){
         if(url == null){
@@ -150,7 +149,7 @@ public class Util {
     }
 
     /**
-     * Strips a servlet session ID from <code>url</code>.  The session ID
+     * Strips a servlet session ID from <tt>url</tt>.  The session ID
      * is encoded as a URL "path parameter" beginning with "jsessionid=".
      * We thus remove anything we find between ";jsessionid=" (inclusive)
      * and either EOS or a subsequent ';' (exclusive).
@@ -260,7 +259,8 @@ public class Util {
                 return url;
         } else {
             if (!context.startsWith("/") || !url.startsWith("/")) {
-                throw new JspTagException(Localizer.getMessage("jstl.urlMustStartWithSlash"));
+                throw new JspTagException(
+                "In URL tags, when the \"context\" attribute is specified, values of both \"context\" and \"url\" must start with \"/\".");
             }
             if (context.equals("/")) {
                 // Don't produce string starting with '//', many
@@ -313,7 +313,8 @@ public class Util {
         @Override
         public PrintWriter getWriter() {
             if (isStreamUsed)
-                throw new IllegalStateException(Localizer.getMessage("jstl.writerAfterOS"));
+                throw new IllegalStateException("Unexpected internal error during &lt;import&gt: " +
+                "Target servlet called getWriter(), then getOutputStream()");
             isWriterUsed = true;
             return new PrintWriter(sw);
         }
@@ -321,7 +322,8 @@ public class Util {
         @Override
         public ServletOutputStream getOutputStream() {
             if (isWriterUsed)
-                throw new IllegalStateException(Localizer.getMessage("jstl.OSAfterWriter"));
+                throw new IllegalStateException("Unexpected internal error during &lt;import&gt: " +
+                "Target servlet called getOutputStream(), then getWriter()");
             isStreamUsed = true;
             return sos;
         }

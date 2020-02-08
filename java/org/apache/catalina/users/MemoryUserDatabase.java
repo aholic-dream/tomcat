@@ -19,12 +19,12 @@ package org.apache.catalina.users;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
@@ -42,7 +42,6 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.digester.AbstractObjectCreationFactory;
 import org.apache.tomcat.util.digester.Digester;
 import org.apache.tomcat.util.file.ConfigFileLoader;
-import org.apache.tomcat.util.file.ConfigurationSource;
 import org.apache.tomcat.util.res.StringManager;
 import org.xml.sax.Attributes;
 
@@ -170,6 +169,7 @@ public class MemoryUserDatabase implements UserDatabase {
             readLock.unlock();
         }
     }
+
 
 
     /**
@@ -415,6 +415,7 @@ public class MemoryUserDatabase implements UserDatabase {
      */
     @Override
     public void open() throws Exception {
+
         writeLock.lock();
         try {
             // Erase any previous groups and users
@@ -423,8 +424,12 @@ public class MemoryUserDatabase implements UserDatabase {
             roles.clear();
 
             String pathName = getPathname();
-            try (ConfigurationSource.Resource resource = ConfigFileLoader.getSource().getResource(pathName)) {
-                this.lastModified = resource.getURI().toURL().openConnection().getLastModified();
+            URI uri = ConfigFileLoader.getURI(pathName);
+            URL url = uri.toURL();
+            URLConnection uConn = url.openConnection();
+
+            try (InputStream is = uConn.getInputStream()) {
+                this.lastModified = uConn.getLastModified();
 
                 // Construct a digester to read the XML input file
                 Digester digester = new Digester();
@@ -442,16 +447,17 @@ public class MemoryUserDatabase implements UserDatabase {
                         new MemoryUserCreationFactory(this), true);
 
                 // Parse the XML input to load this database
-                digester.parse(resource.getInputStream());
+                digester.parse(is);
             } catch (IOException ioe) {
                 log.error(sm.getString("memoryUserDatabase.fileNotFound", pathName));
-            } catch (Exception e) {
-                // Fail safe on error
-                users.clear();
-                groups.clear();
-                roles.clear();
-                throw e;
             }
+        } catch (Exception e) {
+            // Fail safe on error
+            users.clear();
+            groups.clear();
+            roles.clear();
+
+            throw e;
         } finally {
             writeLock.unlock();
         }
@@ -566,7 +572,7 @@ public class MemoryUserDatabase implements UserDatabase {
         writeLock.lock();
         try {
             try (FileOutputStream fos = new FileOutputStream(fileNew);
-                    OutputStreamWriter osw = new OutputStreamWriter(fos, StandardCharsets.UTF_8);
+                    OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF8");
                     PrintWriter writer = new PrintWriter(osw)) {
 
                 // Print the file prolog
@@ -654,11 +660,10 @@ public class MemoryUserDatabase implements UserDatabase {
             return;
         }
 
-        URI uri = ConfigFileLoader.getSource().getURI(getPathname());
-        URLConnection uConn = null;
+        URI uri = ConfigFileLoader.getURI(getPathname());
         try {
             URL url = uri.toURL();
-            uConn = url.openConnection();
+            URLConnection uConn = url.openConnection();
 
             if (this.lastModified != uConn.getLastModified()) {
                 writeLock.lock();
@@ -678,15 +683,6 @@ public class MemoryUserDatabase implements UserDatabase {
             }
         } catch (Exception ioe) {
             log.error(sm.getString("memoryUserDatabase.reloadError", id, uri), ioe);
-        } finally {
-            if (uConn != null) {
-                try {
-                    // Can't close a uConn directly. Have to do it like this.
-                    uConn.getInputStream().close();
-                } catch (IOException ioe) {
-                    log.warn(sm.getString("memoryUserDatabase.fileClose", pathname), ioe);
-                }
-            }
         }
     }
 

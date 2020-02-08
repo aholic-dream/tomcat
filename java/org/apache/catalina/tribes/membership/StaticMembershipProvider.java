@@ -25,6 +25,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.ChannelException;
@@ -37,6 +39,7 @@ import org.apache.catalina.tribes.group.RpcCallback;
 import org.apache.catalina.tribes.group.RpcChannel;
 import org.apache.catalina.tribes.util.Arrays;
 import org.apache.catalina.tribes.util.ExceptionUtils;
+import org.apache.catalina.tribes.util.ExecutorFactory;
 import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -61,6 +64,8 @@ public class StaticMembershipProvider extends MembershipProviderBase implements 
     protected long pingInterval = 1000;
     protected volatile boolean running = true;
     protected PingThread thread = null;
+    // The event notification executor
+    protected final ExecutorService executor = ExecutorFactory.newThreadPool(0, 10, 10, TimeUnit.SECONDS);
 
     @Override
     public void init(Properties properties) throws Exception {
@@ -112,6 +117,7 @@ public class StaticMembershipProvider extends MembershipProviderBase implements 
         }
         startLevel = (startLevel & (~level));
         if ( startLevel == 0 ) {
+            executor.shutdownNow();
             running = false;
             if (thread != null) {
                 thread.interrupt();
@@ -271,28 +277,27 @@ public class StaticMembershipProvider extends MembershipProviderBase implements 
         try {
             if (!useThread) ping();
         } catch (ChannelException e) {
-            log.warn(sm.getString("staticMembershipProvider.heartbeat.failed"), e);
+            log.error(sm.getString("staticMembershipProvider.heartbeat.failed"), e);
         }
     }
 
     protected void ping() throws ChannelException {
         // send ping
         Member[] members = getAliveMembers(staticMembers.toArray(new Member[0]));
-        if (members.length > 0) {
-            try {
-                MemberMessage msg = new MemberMessage(membershipId, MemberMessage.MSG_PING, service.getLocalMember(true));
-                Response[] resp = rpcChannel.send(members, msg, RpcChannel.ALL_REPLY, sendOptions, rpcTimeout);
-                for (int i = 0; i < resp.length; i++) {
-                    messageReceived(resp[i].getMessage(), resp[i].getSource());
-                }
-            } catch (ChannelException ce) {
-                // Handle known failed members
-                FaultyMember[] faultyMembers = ce.getFaultyMembers();
-                for (FaultyMember faultyMember : faultyMembers) {
-                    memberDisappeared(faultyMember.getMember());
-                }
-                throw ce;
+        if (members.length == 0) return;
+        try {
+            MemberMessage msg = new MemberMessage(membershipId, MemberMessage.MSG_PING, service.getLocalMember(true));
+            Response[] resp = rpcChannel.send(members, msg, RpcChannel.ALL_REPLY, sendOptions, rpcTimeout);
+            for (int i = 0; i < resp.length; i++) {
+                messageReceived(resp[i].getMessage(), resp[i].getSource());
             }
+        } catch (ChannelException ce) {
+            // Handle known failed members
+            FaultyMember[] faultyMembers = ce.getFaultyMembers();
+            for (FaultyMember faultyMember : faultyMembers) {
+                memberDisappeared(faultyMember.getMember());
+            }
+            throw ce;
         }
         // expire
         checkExpired();

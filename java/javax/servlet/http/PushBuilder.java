@@ -84,7 +84,7 @@ public interface PushBuilder {
     PushBuilder sessionId(String sessionId);
 
     /**
-     * Sets an HTTP header on the request. Any existing headers of the same name
+     * Sets a HTTP header on the request. Any existing headers of the same name
      * are first remove.
      *
      * @param name  The name of the header to set
@@ -95,7 +95,7 @@ public interface PushBuilder {
     PushBuilder setHeader(String name, String value);
 
     /**
-     * Adds an HTTP header to the request.
+     * Adds a HTTP header to the request.
      *
      * @param name  The name of the header to add
      * @param value The value of the header to add
@@ -134,8 +134,8 @@ public interface PushBuilder {
      * fields are set to {@code null}:
      * <ul>
      * <li>{@code path}</li>
-     * <li>conditional request headers ({@code if-none-match} and
-     *     {@code if-modified-since})</li>
+     * <li>{@code etag}</li>
+     * <li>{@code lastModified}</li>
      * </ul>
      *
      * @throws IllegalStateException If this method is called when {@code path}

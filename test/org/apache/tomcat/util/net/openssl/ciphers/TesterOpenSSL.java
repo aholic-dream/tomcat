@@ -48,10 +48,10 @@ public class TesterOpenSSL {
         } catch (IOException e) {
             versionString = "";
         }
-        if (versionString.startsWith("OpenSSL 3.0.0")) {
+        if (versionString.startsWith("OpenSSL 1.1.2")) {
             // Note: Gump currently tests 9.0.x with OpenSSL master
-            //       (a.k.a 3.0.0-dev)
-            VERSION = 30000;
+            //       (a.k.a 1.1.2-dev)
+            VERSION = 10102;
         } else if (versionString.startsWith("OpenSSL 1.1.1")) {
             // LTS
             // Supported until at least 2023-09-11
@@ -307,18 +307,6 @@ public class TesterOpenSSL {
             unimplemented.add(Cipher.TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384);
         }
 
-        String skipCiphers = System.getProperty("tomcat.test.openssl.unimplemented", "");
-        if (!skipCiphers.isEmpty()) {
-            String[] skip = skipCiphers.split(",");
-            for (Cipher c : Cipher.values()) {
-                for (String s : skip) {
-                    if (c.toString().contains(s)) {
-                        unimplemented.add(c);
-                    }
-                }
-            }
-        }
-
         OPENSSL_UNIMPLEMENTED_CIPHERS = Collections.unmodifiableSet(unimplemented);
 
         Map<String,String> renamed = new HashMap<>();
@@ -358,6 +346,7 @@ public class TesterOpenSSL {
             result.add(cipher);
         }
         return result;
+
     }
 
 
@@ -367,14 +356,6 @@ public class TesterOpenSSL {
         // Standard command to list the ciphers
         args.add("ciphers");
         args.add("-v");
-        if (VERSION < 10100) {
-            // Need to exclude the GOST ciphers
-            if (specification == null) {
-                specification = "DEFAULT:!aGOST";
-            } else {
-                specification = "!aGOST:" + specification;
-            }
-        }
         if (VERSION >= 10101) {
             // Need to exclude the TLSv1.3 ciphers
             args.add("-ciphersuites");

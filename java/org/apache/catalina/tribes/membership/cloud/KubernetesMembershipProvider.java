@@ -20,15 +20,12 @@ package org.apache.catalina.tribes.membership.cloud;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.apache.catalina.tribes.Member;
@@ -36,11 +33,18 @@ import org.apache.catalina.tribes.MembershipService;
 import org.apache.catalina.tribes.membership.MemberImpl;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.json.JSONParser;
+import org.apache.tomcat.util.codec.binary.StringUtils;
+
+import com.github.openjson.JSONArray;
+import com.github.openjson.JSONException;
+import com.github.openjson.JSONObject;
+import com.github.openjson.JSONTokener;
 
 
 public class KubernetesMembershipProvider extends CloudMembershipProvider {
     private static final Log log = LogFactory.getLog(KubernetesMembershipProvider.class);
+
+    private static final String CUSTOM_ENV_PREFIX = "OPENSHIFT_KUBE_PING_";
 
     @Override
     public void start(int level) throws Exception {
@@ -51,7 +55,9 @@ public class KubernetesMembershipProvider extends CloudMembershipProvider {
         super.start(level);
 
         // Set up Kubernetes API parameters
-        String namespace = getNamespace();
+        String namespace = getEnv("KUBERNETES_NAMESPACE", CUSTOM_ENV_PREFIX + "NAMESPACE");
+        if (namespace == null || namespace.length() == 0)
+            throw new RuntimeException(sm.getString("kubernetesMembershipProvider.noNamespace"));
 
         if (log.isDebugEnabled()) {
             log.debug(String.format("Namespace [%s] set; clustering enabled", namespace));
@@ -75,12 +81,8 @@ public class KubernetesMembershipProvider extends CloudMembershipProvider {
             if (saTokenFile == null) {
                 saTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token";
             }
-            try {
-                byte[] bytes = Files.readAllBytes(FileSystems.getDefault().getPath(saTokenFile));
-                streamProvider = new TokenStreamProvider(new String(bytes, StandardCharsets.US_ASCII), caCertFile);
-            } catch (IOException e) {
-                log.error(sm.getString("kubernetesMembershipProvider.streamError"), e);
-            }
+            byte[] bytes = Files.readAllBytes(FileSystems.getDefault().getPath(saTokenFile));
+            streamProvider = new TokenStreamProvider(StringUtils.newStringUsAscii(bytes), caCertFile);
         } else {
             if (protocol == null) {
                 protocol = "http";
@@ -129,104 +131,64 @@ public class KubernetesMembershipProvider extends CloudMembershipProvider {
 
         List<MemberImpl> members = new ArrayList<>();
 
-        try (InputStream stream = streamProvider.openStream(url, headers, connectionTimeout, readTimeout);
-                InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
-            parsePods(reader, members);
-        } catch (IOException e) {
-            log.error(sm.getString("kubernetesMembershipProvider.streamError"), e);
-        }
+        try (InputStream stream = streamProvider.openStream(url, headers, connectionTimeout, readTimeout)) {
+            JSONObject json = new JSONObject(new JSONTokener(new InputStreamReader(stream, "UTF-8")));
 
-        return members.toArray(new Member[0]);
-    }
+            JSONArray items = json.getJSONArray("items");
 
-    @SuppressWarnings("unchecked")
-    protected void parsePods(Reader reader, List<MemberImpl> members) {
-        JSONParser parser = new JSONParser(reader);
-        try {
-            LinkedHashMap<String, Object> json = parser.object();
-            Object itemsObject = json.get("items");
-            if (!(itemsObject instanceof List<?>)) {
-                log.error(sm.getString("kubernetesMembershipProvider.invalidPodsList", "no items"));
-                return;
-            }
-            List<Object> items = (List<Object>) itemsObject;
-            for (Object podObject : items) {
-                if (!(podObject instanceof LinkedHashMap<?, ?>)) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                LinkedHashMap<String, Object> pod = (LinkedHashMap<String, Object>) podObject;
-                // If there is a "kind", check it is "Pod"
-                Object podKindObject = pod.get("kind");
-                if (podKindObject != null && !"Pod".equals(podKindObject)) {
-                    continue;
-                }
-                // "metadata" contains "name", "uid" and "creationTimestamp"
-                Object metadataObject = pod.get("metadata");
-                if (!(metadataObject instanceof LinkedHashMap<?, ?>)) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                LinkedHashMap<String, Object> metadata = (LinkedHashMap<String, Object>) metadataObject;
-                Object nameObject = metadata.get("name");
-                if (nameObject == null) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                Object objectUid = metadata.get("uid");
-                Object creationTimestampObject = metadata.get("creationTimestamp");
-                if (creationTimestampObject == null) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                String creationTimestamp = creationTimestampObject.toString();
-                // "status" contains "phase" (which must be "Running") and "podIP"
-                Object statusObject = pod.get("status");
-                if (!(statusObject instanceof LinkedHashMap<?, ?>)) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                LinkedHashMap<String, Object> status = (LinkedHashMap<String, Object>) statusObject;
-                if (!"Running".equals(status.get("phase"))) {
-                    continue;
-                }
-                Object podIPObject = status.get("podIP");
-                if (podIPObject == null) {
-                    log.warn(sm.getString("kubernetesMembershipProvider.invalidPod"));
-                    continue;
-                }
-                String podIP = podIPObject.toString();
-                String uid = (objectUid == null) ? podIP : objectUid.toString();
+            for (int i = 0; i < items.length(); i++) {
+                String phase;
+                String ip;
+                String name;
+                Instant creationTime;
 
-                // We found ourselves, ignore
-                if (podIP.equals(localIp)) {
-                    // Update the UID on initial lookup
-                    Member localMember = service.getLocalMember(false);
-                    if (localMember.getUniqueId() == CloudMembershipService.INITIAL_ID && localMember instanceof MemberImpl) {
-                        byte[] id = md5.digest(uid.getBytes(StandardCharsets.US_ASCII));
-                        ((MemberImpl) localMember).setUniqueId(id);
-                    }
+                try {
+                    JSONObject item = items.getJSONObject(i);
+                    JSONObject status = item.getJSONObject("status");
+                    phase = status.getString("phase");
+
+                    // Ignore shutdown pods
+                    if (!phase.equals("Running"))
+                        continue;
+
+                    ip = status.getString("podIP");
+
+                    // Get name & start time
+                    JSONObject metadata = item.getJSONObject("metadata");
+                    name = metadata.getString("name");
+                    String timestamp = metadata.getString("creationTimestamp");
+                    creationTime = Instant.parse(timestamp);
+                } catch (JSONException e) {
+                    log.warn(sm.getString("kubernetesMembershipProvider.jsonError"), e);
                     continue;
                 }
 
-                long aliveTime = Duration.between(Instant.parse(creationTimestamp), startTime).toMillis();
+                // We found ourselves, ignore
+                if (name.equals(hostName))
+                    continue;
+
+                // id = md5(hostname)
+                byte[] id = md5.digest(name.getBytes());
+                long aliveTime = Duration.between(creationTime, startTime).getSeconds() * 1000; // aliveTime is in ms
 
                 MemberImpl member = null;
                 try {
-                    member = new MemberImpl(podIP, port, aliveTime);
+                    member = new MemberImpl(ip, port, aliveTime);
                 } catch (IOException e) {
                     // Shouldn't happen:
                     // an exception is thrown if hostname can't be resolved to IP, but we already provide an IP
-                    log.error(sm.getString("kubernetesMembershipProvider.memberError"), e);
+                    log.warn(sm.getString("kubernetesMembershipProvider.memberError"), e);
                     continue;
                 }
-                byte[] id = md5.digest(uid.getBytes(StandardCharsets.US_ASCII));
+
                 member.setUniqueId(id);
                 members.add(member);
             }
-        } catch (Exception e) {
-            log.error(sm.getString("kubernetesMembershipProvider.jsonError"), e);
+        } catch (IOException e) {
+            log.warn(sm.getString("kubernetesMembershipProvider.streamError"), e);
         }
+
+        return members.toArray(new Member[0]);
     }
 
 }

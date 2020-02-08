@@ -43,10 +43,8 @@ public class StaticFieldELResolver extends ELResolver {
             try {
                 Field field = clazz.getField(name);
                 int modifiers = field.getModifiers();
-                JreCompat jreCompat = JreCompat.getInstance();
                 if (Modifier.isStatic(modifiers) &&
-                        Modifier.isPublic(modifiers) &&
-                        jreCompat.canAcccess(null, field)) {
+                        Modifier.isPublic(modifiers)) {
                     return field.get(null);
                 }
             } catch (IllegalArgumentException | IllegalAccessException |
@@ -113,13 +111,11 @@ public class StaticFieldELResolver extends ELResolver {
                 return result;
 
             } else {
-                // Static method so base should be null
-                Method match = Util.findMethod(clazz, null, methodName, paramTypes, params);
+                Method match =
+                        Util.findMethod(clazz, methodName, paramTypes, params);
 
-                // Note: On Java 9 and above, the isStatic check becomes
-                // unnecessary because the canAccess() call in Util.findMethod()
-                // effectively performs the same check
-                if (match == null || !Modifier.isStatic(match.getModifiers())) {
+                int modifiers = match.getModifiers();
+                if (!Modifier.isStatic(modifiers)) {
                     throw new MethodNotFoundException(Util.message(context,
                             "staticFieldELResolver.methodNotFound", methodName,
                             clazz.getName()));
@@ -157,10 +153,8 @@ public class StaticFieldELResolver extends ELResolver {
             try {
                 Field field = clazz.getField(name);
                 int modifiers = field.getModifiers();
-                JreCompat jreCompat = JreCompat.getInstance();
                 if (Modifier.isStatic(modifiers) &&
-                        Modifier.isPublic(modifiers) &&
-                        jreCompat.canAcccess(null, field)) {
+                        Modifier.isPublic(modifiers)) {
                     return field.getType();
                 }
             } catch (IllegalArgumentException | NoSuchFieldException |

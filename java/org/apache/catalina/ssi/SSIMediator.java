@@ -29,7 +29,6 @@ import java.util.regex.Matcher;
 
 import org.apache.catalina.util.Strftime;
 import org.apache.catalina.util.URLEncoder;
-import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.Escape;
 
 /**
@@ -43,16 +42,9 @@ import org.apache.tomcat.util.security.Escape;
  * @author David Becker
  */
 public class SSIMediator {
-    private static final StringManager sm = StringManager.getManager(SSIMediator.class);
-
-    protected static final String ENCODING_NONE = "none";
-    protected static final String ENCODING_ENTITY = "entity";
-    protected static final String ENCODING_URL = "url";
-
     protected static final String DEFAULT_CONFIG_ERR_MSG = "[an error occurred while processing this directive]";
     protected static final String DEFAULT_CONFIG_TIME_FMT = "%A, %d-%b-%Y %T %Z";
     protected static final String DEFAULT_CONFIG_SIZE_FMT = "abbrev";
-
     protected String configErrMsg = DEFAULT_CONFIG_ERR_MSG;
     protected String configTimeFmt = DEFAULT_CONFIG_TIME_FMT;
     protected String configSizeFmt = DEFAULT_CONFIG_SIZE_FMT;
@@ -160,7 +152,7 @@ public class SSIMediator {
 
 
     public String getVariableValue(String variableName) {
-        return getVariableValue(variableName, ENCODING_NONE);
+        return getVariableValue(variableName, "none");
     }
 
 
@@ -289,15 +281,15 @@ public class SSIMediator {
 
     protected String encode(String value, String encoding) {
         String retVal = null;
-        if (encoding.equalsIgnoreCase(ENCODING_URL)) {
+        if (encoding.equalsIgnoreCase("url")) {
             retVal = URLEncoder.DEFAULT.encode(value, StandardCharsets.UTF_8);
-        } else if (encoding.equalsIgnoreCase(ENCODING_NONE)) {
+        } else if (encoding.equalsIgnoreCase("none")) {
             retVal = value;
-        } else if (encoding.equalsIgnoreCase(ENCODING_ENTITY)) {
+        } else if (encoding.equalsIgnoreCase("entity")) {
             retVal = Escape.htmlElementContent(value);
         } else {
             //This shouldn't be possible
-            throw new IllegalArgumentException(sm.getString("ssiMediator.unknownEncoding", encoding));
+            throw new IllegalArgumentException("Unknown encoding: " + encoding);
         }
         return retVal;
     }

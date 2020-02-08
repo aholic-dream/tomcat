@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
-import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.Adapter;
 import org.apache.coyote.CompressionConfig;
 import org.apache.coyote.Processor;
@@ -42,40 +41,30 @@ import org.apache.tomcat.util.net.SocketWrapperBase;
 
 public class Http2Protocol implements UpgradeProtocol {
 
-    static final long DEFAULT_READ_TIMEOUT = 5000;
-    static final long DEFAULT_WRITE_TIMEOUT = 5000;
-    static final long DEFAULT_KEEP_ALIVE_TIMEOUT = 20000;
-    static final long DEFAULT_STREAM_READ_TIMEOUT = 20000;
-    static final long DEFAULT_STREAM_WRITE_TIMEOUT = 20000;
+    static final long DEFAULT_READ_TIMEOUT = 10000;
+    static final long DEFAULT_KEEP_ALIVE_TIMEOUT = -1;
+    static final long DEFAULT_WRITE_TIMEOUT = 10000;
     // The HTTP/2 specification recommends a minimum default of 100
-    static final long DEFAULT_MAX_CONCURRENT_STREAMS = 100;
+    static final long DEFAULT_MAX_CONCURRENT_STREAMS = 200;
     // Maximum amount of streams which can be concurrently executed over
     // a single connection
     static final int DEFAULT_MAX_CONCURRENT_STREAM_EXECUTION = 20;
-
-    static final int DEFAULT_OVERHEAD_COUNT_FACTOR = 1;
-    static final int DEFAULT_OVERHEAD_CONTINUATION_THRESHOLD = 1024;
-    static final int DEFAULT_OVERHEAD_DATA_THRESHOLD = 1024;
-    static final int DEFAULT_OVERHEAD_WINDOW_UPDATE_THRESHOLD = 1024;
+    // This default is defined by the HTTP/2 specification
+    static final int DEFAULT_INITIAL_WINDOW_SIZE = (1 << 16) - 1;
 
     private static final String HTTP_UPGRADE_NAME = "h2c";
     private static final String ALPN_NAME = "h2";
     private static final byte[] ALPN_IDENTIFIER = ALPN_NAME.getBytes(StandardCharsets.UTF_8);
 
     // All timeouts in milliseconds
-    // These are the socket level timeouts
     private long readTimeout = DEFAULT_READ_TIMEOUT;
-    private long writeTimeout = DEFAULT_WRITE_TIMEOUT;
     private long keepAliveTimeout = DEFAULT_KEEP_ALIVE_TIMEOUT;
-    // These are the stream level timeouts
-    private long streamReadTimeout = DEFAULT_STREAM_READ_TIMEOUT;
-    private long streamWriteTimeout = DEFAULT_STREAM_WRITE_TIMEOUT;
-
+    private long writeTimeout = DEFAULT_WRITE_TIMEOUT;
     private long maxConcurrentStreams = DEFAULT_MAX_CONCURRENT_STREAMS;
     private int maxConcurrentStreamExecution = DEFAULT_MAX_CONCURRENT_STREAM_EXECUTION;
-    // To advertise a different default to the client specify it here but DO NOT
-    // change the default defined in ConnectionSettingsBase.
-    private int initialWindowSize = ConnectionSettingsBase.DEFAULT_INITIAL_WINDOW_SIZE;
+    // If a lower initial value is required, set it here but DO NOT change the
+    // default defined above.
+    private int initialWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
     // Limits
     private Set<String> allowedTrailerHeaders =
             Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -83,17 +72,10 @@ public class Http2Protocol implements UpgradeProtocol {
     private int maxHeaderSize = Constants.DEFAULT_MAX_HEADER_SIZE;
     private int maxTrailerCount = Constants.DEFAULT_MAX_TRAILER_COUNT;
     private int maxTrailerSize = Constants.DEFAULT_MAX_TRAILER_SIZE;
-    private int overheadCountFactor = DEFAULT_OVERHEAD_COUNT_FACTOR;
-    private int overheadContinuationThreshold = DEFAULT_OVERHEAD_CONTINUATION_THRESHOLD;
-    private int overheadDataThreshold = DEFAULT_OVERHEAD_DATA_THRESHOLD;
-    private int overheadWindowUpdateThreshold = DEFAULT_OVERHEAD_WINDOW_UPDATE_THRESHOLD;
-
     private boolean initiatePingDisabled = false;
     private boolean useSendfile = true;
     // Compression
     private final CompressionConfig compressionConfig = new CompressionConfig();
-    // Reference to HTTP/1.1 protocol that this instance is configured under
-    private AbstractProtocol<?> http11Protocol = null;
 
     @Override
     public String getHttpUpgradeName(boolean isSSLEnabled) {
@@ -163,16 +145,6 @@ public class Http2Protocol implements UpgradeProtocol {
     }
 
 
-    public long getWriteTimeout() {
-        return writeTimeout;
-    }
-
-
-    public void setWriteTimeout(long writeTimeout) {
-        this.writeTimeout = writeTimeout;
-    }
-
-
     public long getKeepAliveTimeout() {
         return keepAliveTimeout;
     }
@@ -183,23 +155,13 @@ public class Http2Protocol implements UpgradeProtocol {
     }
 
 
-    public long getStreamReadTimeout() {
-        return streamReadTimeout;
+    public long getWriteTimeout() {
+        return writeTimeout;
     }
 
 
-    public void setStreamReadTimeout(long streamReadTimeout) {
-        this.streamReadTimeout = streamReadTimeout;
-    }
-
-
-    public long getStreamWriteTimeout() {
-        return streamWriteTimeout;
-    }
-
-
-    public void setStreamWriteTimeout(long streamWriteTimeout) {
-        this.streamWriteTimeout = streamWriteTimeout;
+    public void setWriteTimeout(long writeTimeout) {
+        this.writeTimeout = writeTimeout;
     }
 
 
@@ -317,46 +279,6 @@ public class Http2Protocol implements UpgradeProtocol {
     }
 
 
-    public int getOverheadCountFactor() {
-        return overheadCountFactor;
-    }
-
-
-    public void setOverheadCountFactor(int overheadCountFactor) {
-        this.overheadCountFactor = overheadCountFactor;
-    }
-
-
-    public int getOverheadContinuationThreshold() {
-        return overheadContinuationThreshold;
-    }
-
-
-    public void setOverheadContinuationThreshold(int overheadContinuationThreshold) {
-        this.overheadContinuationThreshold = overheadContinuationThreshold;
-    }
-
-
-    public int getOverheadDataThreshold() {
-        return overheadDataThreshold;
-    }
-
-
-    public void setOverheadDataThreshold(int overheadDataThreshold) {
-        this.overheadDataThreshold = overheadDataThreshold;
-    }
-
-
-    public int getOverheadWindowUpdateThreshold() {
-        return overheadWindowUpdateThreshold;
-    }
-
-
-    public void setOverheadWindowUpdateThreshold(int overheadWindowUpdateThreshold) {
-        this.overheadWindowUpdateThreshold = overheadWindowUpdateThreshold;
-    }
-
-
     public void setInitiatePingDisabled(boolean initiatePingDisabled) {
         this.initiatePingDisabled = initiatePingDisabled;
     }
@@ -408,26 +330,7 @@ public class Http2Protocol implements UpgradeProtocol {
     }
 
 
-    @Deprecated
-    public boolean getNoCompressionStrongETag() {
-        return compressionConfig.getNoCompressionStrongETag();
-    }
-    @Deprecated
-    public void setNoCompressionStrongETag(boolean noCompressionStrongETag) {
-        compressionConfig.setNoCompressionStrongETag(noCompressionStrongETag);
-    }
-
-
     public boolean useCompression(Request request, Response response) {
         return compressionConfig.useCompression(request, response);
-    }
-
-
-    public AbstractProtocol<?> getHttp11Protocol() {
-        return this.http11Protocol;
-    }
-    @Override
-    public void setHttp11Protocol(AbstractProtocol<?> http11Protocol) {
-        this.http11Protocol = http11Protocol;
     }
 }

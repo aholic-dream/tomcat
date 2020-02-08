@@ -27,7 +27,7 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.tomcat.util.http.parser.TokenList;
+import org.apache.tomcat.util.http.parser.Vary;
 
 public class ResponseUtil {
 
@@ -81,7 +81,7 @@ public class ResponseUtil {
         for (String varyHeader : varyHeaders) {
             StringReader input = new StringReader(varyHeader);
             try {
-                TokenList.parseTokenList(input, fieldNames);
+                Vary.parseVary(input, fieldNames);
             } catch (IOException ioe) {
                 // Should never happen
             }

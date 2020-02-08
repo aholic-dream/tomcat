@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.res.StringManager;
 
 /*
  * Sender to proxies using multicast socket.
@@ -35,7 +34,6 @@ public class MultiCastSender
     implements Sender {
 
     private static final Log log = LogFactory.getLog(HeartbeatListener.class);
-    private static final StringManager sm = StringManager.getManager(MultiCastSender.class);
 
     HeartbeatListener config = null;
 
@@ -63,7 +61,7 @@ public class MultiCastSender
                 s.setTimeToLive(config.getTtl());
                 s.joinGroup(group);
             } catch (Exception ex) {
-                log.error(sm.getString("multiCastSender.multiCastFailed"), ex);
+                log.error("Unable to use multicast: " + ex);
                 s = null;
                 return -1;
             }
@@ -75,7 +73,7 @@ public class MultiCastSender
         try {
             s.send(data);
         } catch (Exception ex) {
-            log.error(sm.getString("multiCastSender.sendFailed"), ex);
+            log.error("Unable to send collected load information: " + ex);
             s.close();
             s = null;
             return -1;

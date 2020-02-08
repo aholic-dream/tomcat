@@ -108,12 +108,11 @@ class PoolImplUtils {
     /**
      * Gets the matching parameterized type or null.
      * @param type
-     *            The interface that defines a generic type.
+     *            The interface that defines a generic type
      * @param clazz
-     *            The class that implements the interface with a concrete type.
+     *            The class that implements the interface with a concrete type
      * @param <T>
-     *            The interface type.
-     * @return the matching parameterized type or null.
+     *            The interface type
      */
     private static <T> ParameterizedType getParameterizedType(final Class<T> type, final Class<? extends T> clazz) {
         for (final Type iface : clazz.getGenericInterfaces()) {

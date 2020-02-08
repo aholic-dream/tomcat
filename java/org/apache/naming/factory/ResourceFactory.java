@@ -21,7 +21,6 @@ import javax.naming.Reference;
 import javax.naming.spi.ObjectFactory;
 
 import org.apache.naming.ResourceRef;
-import org.apache.naming.StringManager;
 
 /**
  * Object factory for Resources.
@@ -29,8 +28,6 @@ import org.apache.naming.StringManager;
  * @author Remy Maucherat
  */
 public class ResourceFactory extends FactoryBase {
-
-    private static final StringManager sm = StringManager.getManager(ResourceFactory.class);
 
     @Override
     protected boolean isReferenceTypeSupported(Object obj) {
@@ -50,7 +47,8 @@ public class ResourceFactory extends FactoryBase {
                 factory = (ObjectFactory) Class.forName(
                         javaxSqlDataSourceFactoryClassName).getConstructor().newInstance();
             } catch (Exception e) {
-                NamingException ex = new NamingException(sm.getString("resourceFactory.factoryCreationError"));
+                NamingException ex = new NamingException(
+                        "Could not create resource factory instance");
                 ex.initCause(e);
                 throw ex;
             }
@@ -71,7 +69,8 @@ public class ResourceFactory extends FactoryBase {
                 if (t instanceof VirtualMachineError) {
                     throw (VirtualMachineError) t;
                 }
-                NamingException ex = new NamingException(sm.getString("resourceFactory.factoryCreationError"));
+                NamingException ex = new NamingException(
+                        "Could not create resource factory instance");
                 ex.initCause(t);
                 throw ex;
             }

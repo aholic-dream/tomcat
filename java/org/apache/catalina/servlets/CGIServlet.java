@@ -52,7 +52,6 @@ import javax.servlet.http.HttpSession;
 import org.apache.catalina.util.IOTools;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.compat.JrePlatform;
 import org.apache.tomcat.util.res.StringManager;
 
 
@@ -246,21 +245,10 @@ public final class CGIServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
     private static final Set<String> DEFAULT_SUPER_METHODS = new HashSet<>();
-    private static final Pattern DEFAULT_CMD_LINE_ARGUMENTS_DECODED_PATTERN;
-    private static final String ALLOW_ANY_PATTERN = ".*";
-
     static {
         DEFAULT_SUPER_METHODS.add("HEAD");
         DEFAULT_SUPER_METHODS.add("OPTIONS");
         DEFAULT_SUPER_METHODS.add("TRACE");
-
-        if (JrePlatform.IS_WINDOWS) {
-            DEFAULT_CMD_LINE_ARGUMENTS_DECODED_PATTERN = Pattern.compile("[a-zA-Z0-9\\Q-_.\\/:\\E]+");
-        } else {
-            // No restrictions
-            DEFAULT_CMD_LINE_ARGUMENTS_DECODED_PATTERN = null;
-        }
-
     }
 
 
@@ -315,24 +303,6 @@ public final class CGIServlet extends HttpServlet {
      * 4.4.  The Script Command Line
      */
     private boolean enableCmdLineArguments = false;
-
-    /**
-     * Limits the encoded form of individual command line arguments. By default
-     * values are limited to those allowed by the RFC.
-     * See https://tools.ietf.org/html/rfc3875#section-4.4
-     *
-     * Uses \Q...\E to avoid individual quoting.
-     */
-    private Pattern cmdLineArgumentsEncodedPattern =
-            Pattern.compile("[a-zA-Z0-9\\Q%;/?:@&,$-_.!~*'()\\E]+");
-
-    /**
-     * Limits the decoded form of individual command line arguments. Default
-     * varies by platform.
-     */
-    private Pattern cmdLineArgumentsDecodedPattern = DEFAULT_CMD_LINE_ARGUMENTS_DECODED_PATTERN;
-
-
 
     /**
      * Sets instance variables.
@@ -412,7 +382,7 @@ public final class CGIServlet extends HttpServlet {
 
         if (getServletConfig().getInitParameter("cgiMethods") != null) {
             String paramValue = getServletConfig().getInitParameter("cgiMethods");
-            paramValue = paramValue.trim();
+            paramValue.trim();
             if ("*".equals(paramValue)) {
                 cgiMethodsAll = true;
             } else {
@@ -425,19 +395,6 @@ public final class CGIServlet extends HttpServlet {
         } else {
             cgiMethods.add("GET");
             cgiMethods.add("POST");
-        }
-
-        if (getServletConfig().getInitParameter("cmdLineArgumentsEncoded") != null) {
-            cmdLineArgumentsEncodedPattern =
-                    Pattern.compile(getServletConfig().getInitParameter("cmdLineArgumentsEncoded"));
-        }
-
-        String value = getServletConfig().getInitParameter("cmdLineArgumentsDecoded");
-        if (ALLOW_ANY_PATTERN.equals(value)) {
-            // Optimisation for case where anything is allowed
-            cmdLineArgumentsDecodedPattern = null;
-        } else if (value != null) {
-            cmdLineArgumentsDecodedPattern = Pattern.compile(value);
         }
     }
 
@@ -727,20 +684,16 @@ public final class CGIServlet extends HttpServlet {
         protected CGIEnvironment(HttpServletRequest req,
                                  ServletContext context) throws IOException {
             setupFromContext(context);
-            boolean valid = setupFromRequest(req);
+            setupFromRequest(req);
 
-            if (valid) {
-                valid = setCGIEnvironment(req);
-            }
+            this.valid = setCGIEnvironment(req);
 
-            if (valid) {
+            if (this.valid) {
                 workingDirectory = new File(command.substring(0,
                       command.lastIndexOf(File.separator)));
             } else {
                 workingDirectory = null;
             }
-
-            this.valid = valid;
         }
 
 
@@ -762,13 +715,9 @@ public final class CGIServlet extends HttpServlet {
          *
          * @param  req   HttpServletRequest for information provided by
          *               the Servlet API
-         *
-         * @return true if the request was parsed without error, false if there
-         *           was a problem
-
          * @throws UnsupportedEncodingException Unknown encoding
          */
-        protected boolean setupFromRequest(HttpServletRequest req)
+        protected void setupFromRequest(HttpServletRequest req)
                 throws UnsupportedEncodingException {
 
             boolean isIncluded = false;
@@ -811,32 +760,12 @@ public final class CGIServlet extends HttpServlet {
                 }
                 if (qs != null && qs.indexOf('=') == -1) {
                     StringTokenizer qsTokens = new StringTokenizer(qs, "+");
-                    while (qsTokens.hasMoreTokens()) {
-                        String encodedArgument = qsTokens.nextToken();
-                        if (!cmdLineArgumentsEncodedPattern.matcher(encodedArgument).matches()) {
-                            if (log.isDebugEnabled()) {
-                                log.debug(sm.getString("cgiServlet.invalidArgumentEncoded",
-                                        encodedArgument, cmdLineArgumentsEncodedPattern.toString()));
-                            }
-                            return false;
-                        }
-
-                        String decodedArgument = URLDecoder.decode(encodedArgument, parameterEncoding);
-                        if (cmdLineArgumentsDecodedPattern != null &&
-                                !cmdLineArgumentsDecodedPattern.matcher(decodedArgument).matches()) {
-                            if (log.isDebugEnabled()) {
-                                log.debug(sm.getString("cgiServlet.invalidArgumentDecoded",
-                                        decodedArgument, cmdLineArgumentsDecodedPattern.toString()));
-                            }
-                            return false;
-                        }
-
-                        cmdLineParameters.add(decodedArgument);
+                    while ( qsTokens.hasMoreTokens() ) {
+                        cmdLineParameters.add(URLDecoder.decode(qsTokens.nextToken(),
+                                              parameterEncoding));
                     }
                 }
             }
-
-            return true;
         }
 
 
@@ -1139,6 +1068,7 @@ public final class CGIServlet extends HttpServlet {
             this.env = envp;
 
             return true;
+
         }
 
         /**
@@ -1178,52 +1108,53 @@ public final class CGIServlet extends HttpServlet {
                 return;
             }
 
-            try {
-                File f = new File(destPath.toString());
-                if (f.exists()) {
-                    // Don't need to expand if it already exists
-                    return;
-                }
-
-                // create directories
-                File dir = f.getParentFile();
-                if (!dir.mkdirs() && !dir.isDirectory()) {
-                    log.warn(sm.getString("cgiServlet.expandCreateDirFail", dir.getAbsolutePath()));
-                    return;
-                }
-
-                try {
-                    synchronized (expandFileLock) {
-                        // make sure file doesn't exist
-                        if (f.exists()) {
-                            return;
-                        }
-
-                        // create file
-                        if (!f.createNewFile()) {
-                            return;
-                        }
-
-                        Files.copy(is, f.toPath());
-
-                        if (log.isDebugEnabled()) {
-                            log.debug(sm.getString("cgiServlet.expandOk", srcPath, destPath));
-                        }
-                    }
-                } catch (IOException ioe) {
-                    log.warn(sm.getString("cgiServlet.expandFail", srcPath, destPath), ioe);
-                    // delete in case file is corrupted
-                    if (f.exists()) {
-                        if (!f.delete()) {
-                            log.warn(sm.getString("cgiServlet.expandDeleteFail", f.getAbsolutePath()));
-                        }
-                    }
-                }
-            } finally {
+            File f = new File(destPath.toString());
+            if (f.exists()) {
                 try {
                     is.close();
                 } catch (IOException e) {
                     log.warn(sm.getString("cgiServlet.expandCloseFail", srcPath), e);
+                }
+                // Don't need to expand if it already exists
+                return;
+            }
+
+            // create directories
+            File dir = f.getParentFile();
+            if (!dir.mkdirs() && !dir.isDirectory()) {
+                log.warn(sm.getString("cgiServlet.expandCreateDirFail", dir.getAbsolutePath()));
+                return;
+            }
+
+            try {
+                synchronized (expandFileLock) {
+                    // make sure file doesn't exist
+                    if (f.exists()) {
+                        return;
+                    }
+
+                    // create file
+                    if (!f.createNewFile()) {
+                        return;
+                    }
+
+                    try {
+                        Files.copy(is, f.toPath());
+                    } finally {
+                        is.close();
+                    }
+
+                    if (log.isDebugEnabled()) {
+                        log.debug(sm.getString("cgiServlet.expandOk", srcPath, destPath));
+                    }
+                }
+            } catch (IOException ioe) {
+                log.warn(sm.getString("cgiServlet.expandFail", srcPath, destPath), ioe);
+                // delete in case file is corrupted
+                if (f.exists()) {
+                    if (!f.delete()) {
+                        log.warn(sm.getString("cgiServlet.expandDeleteFail", f.getAbsolutePath()));
+                    }
                 }
             }
         }

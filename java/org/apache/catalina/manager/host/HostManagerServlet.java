@@ -213,7 +213,7 @@ public class HostManagerServlet
 
         // Process the requested command
         if (command == null) {
-            writer.println(smClient.getString("hostManagerServlet.noCommand"));
+            writer.println(sm.getString("hostManagerServlet.noCommand"));
         } else if (command.equals("/add")) {
             add(request, writer, name, false, smClient);
         } else if (command.equals("/remove")) {
@@ -227,7 +227,7 @@ public class HostManagerServlet
         } else if (command.equals("/persist")) {
             persist(writer, smClient);
         } else {
-            writer.println(smClient.getString("hostManagerServlet.unknownCommand",
+            writer.println(sm.getString("hostManagerServlet.unknownCommand",
                                         command));
         }
 
@@ -433,7 +433,7 @@ public class HostManagerServlet
 
         host = (StandardHost) engine.findChild(name);
         if (host != null) {
-            writer.println(smClient.getString("hostManagerServlet.addSuccess", name));
+            writer.println(smClient.getString("hostManagerServlet.add", name));
         } else {
             // Something failed
             writer.println(smClient.getString(
@@ -493,7 +493,7 @@ public class HostManagerServlet
         Host host = (StandardHost) engine.findChild(name);
         if (host == null) {
             writer.println(smClient.getString(
-                    "hostManagerServlet.removeSuccess", name));
+                    "hostManagerServlet.remove", name));
         } else {
             // Something failed
             writer.println(smClient.getString(

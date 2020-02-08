@@ -106,7 +106,7 @@ public class LookupFactory implements ObjectFactory {
                     }
                     if (factoryClass != null) {
                         try {
-                            factory = (ObjectFactory) factoryClass.getConstructor().newInstance();
+                            factory = (ObjectFactory) factoryClass.newInstance();
                         } catch (Throwable t) {
                             if (t instanceof NamingException)
                                 throw (NamingException) t;
@@ -134,14 +134,6 @@ public class LookupFactory implements ObjectFactory {
                             name, ref.getClassName(), lookupName, result.getClass().getName());
                     NamingException ne = new NamingException(msg);
                     log.warn(msg, ne);
-                    // Close the resource we no longer need if we know how to do so
-                    if (result instanceof AutoCloseable) {
-                        try {
-                            ((AutoCloseable) result).close();
-                        } catch (Exception e) {
-                            // Ignore
-                        }
-                    }
                     throw ne;
                 }
             } finally {

@@ -116,10 +116,6 @@ public class WsFrameClient extends WsFrameBase {
     }
 
 
-    /*
-     * Fatal error. Usually an I/O error. Try and send notifications. Make sure
-     * socket is closed.
-     */
     private final void close(Throwable t) {
         changeReadState(ReadState.CLOSING);
         CloseReason cr;
@@ -129,7 +125,11 @@ public class WsFrameClient extends WsFrameBase {
             cr = new CloseReason(CloseCodes.CLOSED_ABNORMALLY, t.getMessage());
         }
 
-        wsSession.doClose(cr, cr, true);
+        try {
+            wsSession.close(cr);
+        } catch (IOException ignore) {
+            // Ignore
+        }
     }
 
 

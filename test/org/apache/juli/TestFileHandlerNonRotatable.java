@@ -31,8 +31,6 @@ public class TestFileHandlerNonRotatable extends LoggingBaseTest {
 
     @BeforeClass
     public static void setUpPerTestClass() throws Exception {
-        LoggingBaseTest.setUpPerTestClass();
-
         System.setProperty("java.util.logging.manager",
                 "org.apache.juli.ClassLoaderLogManager");
         String configLoggingPath = TestFileHandlerNonRotatable.class

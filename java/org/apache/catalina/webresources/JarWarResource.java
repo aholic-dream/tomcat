@@ -72,8 +72,6 @@ public class JarWarResource extends AbstractArchiveResource {
                 log.debug(sm.getString("jarResource.getInputStreamFail",
                         getResource().getName(), getBaseUrl()), e);
             }
-            // Ensure jarIs is closed if there is an exception
-            entry = null;
             return null;
         } finally {
             if (entry == null) {

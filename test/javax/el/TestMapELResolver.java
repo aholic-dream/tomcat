@@ -312,7 +312,7 @@ public class TestMapELResolver {
         Assert.assertFalse(context.isPropertyResolved());
     }
 
-    private enum MethodUnderTest {
+    private static enum MethodUnderTest {
         GET_VALUE, SET_VALUE, GET_TYPE
     }
 }

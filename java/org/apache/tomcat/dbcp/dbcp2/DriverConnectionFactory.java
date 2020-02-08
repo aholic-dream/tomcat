@@ -29,9 +29,7 @@ import java.util.Properties;
 public class DriverConnectionFactory implements ConnectionFactory {
 
     private final String connectionString;
-
     private final Driver driver;
-
     private final Properties properties;
 
     /**
@@ -53,30 +51,6 @@ public class DriverConnectionFactory implements ConnectionFactory {
     @Override
     public Connection createConnection() throws SQLException {
         return driver.connect(connectionString, properties);
-    }
-
-    /**
-     * @return The connection String.
-     * @since 2.6.0
-     */
-    public String getConnectionString() {
-        return connectionString;
-    }
-
-    /**
-     * @return The Driver.
-     * @since 2.6.0
-     */
-    public Driver getDriver() {
-        return driver;
-    }
-
-    /**
-     * @return The Properties.
-     * @since 2.6.0
-     */
-    public Properties getProperties() {
-        return properties;
     }
 
     @Override

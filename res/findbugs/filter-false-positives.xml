@@ -185,23 +185,10 @@
     <Bug pattern="DM_STRING_CTOR" />
   </Match>
   <Match>
-    <!-- Calling sleep while holding a lock is deliberate -->
-    <Class name="org.apache.catalina.core.StandardContext" />
-    <Method name="stopInternal" />
-    <Bug pattern="SWL_SLEEP_WITH_LOCK_HELD" />
-  </Match>
-  <Match>
     <!-- Have to trigger GC for leak detection to work. Clearly documented -->
     <Class name="org.apache.catalina.core.StandardHost" />
     <Method name="findReloadedContextMemoryLeaks" />
     <Bug code="Dm" />
-  </Match>
-  <Match>
-    <!-- This could be optimised but a) the code would be less clear and -->
-    <!-- b) SpotBugs still reports an error with the optimised code.     -->
-    <Class name="org.apache.catalina.core.StandardServer"/>
-    <Method name="startPeriodicLifecycleEvent"/>
-    <Bug pattern="RpC_REPEATED_CONDITIONAL_TEST "/>
   </Match>
   <Match>
     <!-- Sync not targeting these fields -->
@@ -344,12 +331,6 @@
     <Bug pattern="VO_VOLATILE_REFERENCE_TO_ARRAY" />
   </Match>
   <Match>
-    <!-- Object is used via side-effect of creation. -->
-    <Class name="org.apache.catalina.mbeans.JmxRemoteLifecycleListener" />
-    <Method name="createServer" />
-    <Bug pattern="DLS_DEAD_LOCAL_STORE" />
-  </Match>
-  <Match>
     <!-- SQL construction is safe since it is from trusted config -->
     <Or>
       <Class name="org.apache.catalina.realm.DataSourceRealm" />
@@ -357,8 +338,6 @@
     </Or>
     <Or>
       <Method name="credentials" />
-      <Method name="getPassword" />
-      <Method name="getRoles" />
       <Method name="roles" />
     </Or>
     <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
@@ -563,19 +542,6 @@
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
   </Match>
   <Match>
-    <!-- This could be optimised but a) the code would be less clear and -->
-    <!-- b) SpotBugs still reports an error with the optimised code.     -->
-    <Class name="org.apache.catalina.tribes.group.GroupChannel"/>
-    <Method name="startHeartbeat"/>
-    <Bug pattern="RpC_REPEATED_CONDITIONAL_TEST "/>
-  </Match>
-  <Match>
-    <!-- False positive. It is lifecycle state that is being protected -->
-    <Class name="org.apache.catalina.tribes.group.GroupChannel" />
-    <Field name="utilityExecutor" />
-    <Bug pattern="IS2_INCONSISTENT_SYNC" />
-  </Match>
-  <Match>
     <Class name="org.apache.catalina.tribes.group.RpcChannel"/>
     <Method name="send"/>
     <Bug pattern="WA_NOT_IN_LOOP"/>
@@ -743,13 +709,6 @@
     <Bug pattern="JLM_JSR166_UTILCONCURRENT_MONITORENTER" />
   </Match>
   <Match>
-    <!-- This could be optimised but a) the code would be less clear and -->
-    <!-- b) SpotBugs still reports an error with the optimised code.     -->
-    <Class name="org.apache.coyote.AbstractProtocol"/>
-    <Method name="startAsyncTimeout"/>
-    <Bug pattern="RpC_REPEATED_CONDITIONAL_TEST "/>
-  </Match>
-  <Match>
     <!-- Correct behaviour does not assume sequential operations on concurrent
          hash map are atomic. -->
     <Class name="org.apache.coyote.AbstractProtocol$AbstractConnectionHandler" />
@@ -818,10 +777,7 @@
     <!-- Notify is correct. Condition changed outside of this method. -->
     <Class name="org.apache.coyote.http2.Http2UpgradeHandler" />
     <Method name="incrementWindowSize" />
-    <Or>
-      <Bug pattern="NN_NAKED_NOTIFY" />
-      <Bug pattern="NO_NOTIFY_NOT_NOTIFYALL" />
-    </Or>
+    <Bug pattern="NN_NAKED_NOTIFY" />
   </Match>
   <Match>
     <!-- Return value is intentionally ignored. -->
@@ -833,25 +789,10 @@
     <!-- Notify is correct. Condition changed outside of this method. -->
     <Class name="org.apache.coyote.http2.Stream" />
     <Or>
-      <Method name="cancelAllocationRequests" />
       <Method name="incrementWindowSize" />
+      <Method name="receiveReset" />
     </Or>
-    <Or>
-      <Bug pattern="NN_NAKED_NOTIFY" />
-      <Bug pattern="NO_NOTIFY_NOT_NOTIFYALL" />
-    </Or>
-  </Match>
-  <Match>
-    <!-- Monitor is used for a single condition. -->
-    <Class name="org.apache.coyote.http2.WindowAllocationManager" />
-    <Method name="notify" />
-    <Bug pattern="NO_NOTIFY_NOT_NOTIFYALL" />
-  </Match>
-  <Match>
-    <!-- Monitor is used for a single condition. -->
-    <Class name="org.apache.coyote.http2.WindowAllocationManager" />
-    <Method name="waitFor" />
-    <Bug pattern="WA_NOT_IN_LOOP" />
+    <Bug pattern="NN_NAKED_NOTIFY" />
   </Match>
   <Match>
     <!-- Returning null is required by the EL specification -->
@@ -987,13 +928,6 @@
     <Bug code="Dm" />
   </Match>
   <Match>
-    <!-- As per the comment, FileSystems.getDefault() does have a
-         side-effect. -->
-    <Class name="org.apache.juli.logging.LogFactory"/>
-    <Method name="&lt;init&gt;"/>
-    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT" />
-  </Match>
-  <Match>
     <!-- Reference.equals() implementation correctly handles sub-classes -->
     <Class name="org.apache.naming.ServiceRef" />
     <Pattern code="EQ_DOESNT_OVERRIDE_EQUALS" />
@@ -1016,14 +950,6 @@
     <!-- Class name needs to start with a lower case letter in this case -->
     <Class name="org.apache.naming.java.javaURLContextFactory" />
     <Bug code="Nm" />
-  </Match>
-  <Match>
-    <!-- Utility classes used to import/export l10n strings -->
-    <!-- This code does not need to be robust -->
-    <Or>
-      <Class name="org.apache.tomcat.buildutil.translate.Export"/>
-      <Class name="org.apache.tomcat.buildutil.translate.Import"/>
-    </Or>
   </Match>
   <Match>
     <!-- Return value is never used -->
@@ -1223,15 +1149,6 @@
     <Bug code="ST" />
   </Match>
   <Match>
-    <!-- Array is only ever updated as a whole, not element by element -->
-    <Class name="org.apache.tomcat.util.buf.StringCache"/>
-    <Or>
-      <Field name="bcCache"/>
-      <Field name="ccCache"/>
-    </Or>
-    <Bug pattern="VO_VOLATILE_REFERENCE_TO_ARRAY"/>
-  </Match>
-  <Match>
     <!-- mb.toString() can be null because
     o.a.t.util.buf.MessageBytes.toString() can return NULL -->
     <Class name="org.apache.tomcat.util.buf.UDecoder"/>
@@ -1330,15 +1247,6 @@
     <Bug pattern="SR_NOT_CHECKED" />
   </Match>
   <Match>
-    <!--  Generated code -->
-    <Or>
-      <Class name="org.apache.tomcat.util.json.JSONParser"/>
-      <Class name="org.apache.tomcat.util.json.JSONParserTokenManager"/>
-      <Class name="org.apache.tomcat.util.json.ParseException"/>
-      <Class name="org.apache.tomcat.util.json.TokenMgrError"/>
-    </Or>
-  </Match>
-  <Match>
     <!-- Hiding of field in superclass is deliberate -->
     <Class name="org.apache.tomcat.util.modeler.NotificationInfo"/>
     <Field name="info" />
@@ -1407,13 +1315,6 @@
     <Bug code="ML" />
   </Match>
   <Match>
-    <!-- Sync is on closed to ensure that actions taken because the socket  -->
-    <!-- open remain valid until the action is completed.                   -->
-    <Class name="org.apache.tomcat.util.net.AprEndpoint$AprSocketWrapper"/>
-    <Field name="closed"/>
-    <Bug pattern="JLM_JSR166_UTILCONCURRENT_MONITORENTER"/>
-  </Match>
-  <Match>
     <!-- Return value is ignored at this point but logic further up call     -->
     <!-- stack will ensure that a SocketTimeoutException is thrown           -->
     <Class name="org.apache.tomcat.util.net.NioEndpoint$NioSocketWrapper"/>
@@ -1463,27 +1364,6 @@
     <Class name="org.apache.tomcat.util.net.SecureNio2Channel" />
     <Method name="processSNI"/>
     <Bug code="SF" />
-  </Match>
-  <Match>
-  <!-- Single condition so fine -->
-    <Class name="org.apache.tomcat.util.net.SocketWrapperBase" />
-    <Method name="vectoredOperation"/>
-    <Bug pattern="WA_NOT_IN_LOOP" />
-  </Match>
-  <Match>
-  <!-- Single condition so notify is fine -->
-    <Class name="org.apache.tomcat.util.net.SocketWrapperBase$VectoredIOCompletionHandler" />
-    <Or>
-      <Method name="completed"/>
-      <Method name="failed"/>
-    </Or>
-    <Bug pattern="NO_NOTIFY_NOT_NOTIFYALL" />
-  </Match>
-  <Match>
-    <!-- Stream will be closed -->
-    <Class name="org.apache.tomcat.util.net.jsse.PEMFile" />
-    <Method name="&lt;init&gt;" />
-    <Pattern name="OS_OPEN_STREAM" />
   </Match>
   <Match>
     <!-- Array elements are not modified after assignment -->
@@ -1592,17 +1472,9 @@
     <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
   </Match>
   <Match>
-    <!-- Name is consistent in context -->
-     <Class name="javax.servlet.http.TestHttpServletResponseSendError$ErrorServletStaticException" />
-    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
-  </Match>
-  <Match>
     <!-- Code is intentionally unused -->
     <Class name="org.apache.catalina.authenticator.TestBasicAuthParser"/>
-    <Or>
-      <Method name="testAuthMethodBadMethod"/>
-      <Method name="testBadBase64Char"/>
-    </Or>
+    <Method name="testAuthMethodBadMethod"/>
     <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
   </Match>
   <Match>
@@ -1654,21 +1526,9 @@
   </Match>
   <Match>
     <!-- Deliberate hack for the purposes of the test -->
-    <Class name="org.apache.catalina.core.TestAsyncContextImpl$AsyncIoEndServlet"/>
-    <Field name="asyncIoEndWriteListener"/>
-    <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
-  </Match>
-  <Match>
-    <!-- Deliberate hack for the purposes of the test -->
     <Class name="org.apache.catalina.core.TestAsyncContextImpl$AsyncISEServlet"/>
     <Field name="asyncContext"/>
     <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
-  </Match>
-  <Match>
-    <!-- Deliberate use of run() for the purposes of the test -->
-    <Class name="org.apache.catalina.core.TestAsyncContextStateChanges$AsyncServlet"/>
-    <Method name="doGet"/>
-    <Bug pattern="RU_INVOKE_RUN"/>
   </Match>
   <Match>
     <!-- Hard-coded absolute path is intentional -->
@@ -1695,24 +1555,6 @@
     <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
   </Match>
   <Match>
-    <!-- Return value of latch is intentionally ignored -->
-    <Class name="org.apache.catalina.nonblocking.TestNonBlockingAPI"/>
-    <Method name="testDelayedNBWrite"/>
-    <Bug pattern="RV_RETURN_VALUE_IGNORED"/>
-  </Match>
-  <Match>
-    <!-- Deliberate hack for the purposes of the test -->
-    <Class name="org.apache.catalina.nonblocking.TestNonBlockingAPI$NBReadServlet"/>
-    <Filed name="listener"/>
-    <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
-  </Match>
-  <Match>
-    <!-- Return value of read is intentionally ignored -->
-    <Class name="org.apache.catalina.nonblocking.TestNonBlockingAPI$NBReadWithDispatchServlet$1"/>
-    <Method name="onDataAvailable"/>
-    <Bug pattern="RR_NOT_CHECKED"/>
-  </Match>
-  <Match>
     <!-- Deliberate hack for the purposes of the test -->
     <Class name="org.apache.catalina.startup.TesterServletWithAnnotations"/>
     <Or>
@@ -1728,6 +1570,18 @@
     <Class name="org.apache.catalina.startup.TesterServletWithLifeCycleMethods"/>
     <Field name="result"/>
     <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
+  </Match>
+  <Match>
+    <!-- Return value of latch is intentionally ignored -->
+    <Class name="org.apache.catalina.nonblocking.TestNonBlockingAPI"/>
+    <Method name="testDelayedNBWrite"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED"/>
+  </Match>
+  <Match>
+    <!-- Return value of read is intentionally ignored -->
+    <Class name="org.apache.catalina.nonblocking.TestNonBlockingAPI$NBReadWithDispatchServlet$1"/>
+    <Method name="onDataAvailable"/>
+    <Bug pattern="RR_NOT_CHECKED"/>
   </Match>
   <Match>
     <Or>
@@ -1746,12 +1600,6 @@
     <Class name="org.apache.catalina.startup.TestTomcat$CustomContextConfig"/>
     <Field name="used"/>
     <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
-  </Match>
-  <Match>
-    <!-- Test code - array is safe -->
-    <Class name="org.apache.catalina.startup.TomcatBaseTest"/>
-    <Field name="booleans"/>
-    <Bug pattern="MS_MUTABLE_ARRAY"/>
   </Match>
   <Match>
     <Class name="org.apache.catalina.tribes.demos.EchoRpcTest" />
@@ -1843,16 +1691,16 @@
     <Bug code="DE" />
   </Match>
   <Match>
-    <!-- Concrete Map type not affected -->
-    <Class name="org.apache.catalina.util.TestParameterMap" />
-    <Method name="testEntrySetImmutabilityAfterLocked" />
-    <Bug pattern="DMI_ENTRY_SETS_MAY_REUSE_ENTRY_OBJECTS" />
-  </Match>
-  <Match>
     <!-- Deliberate hack for the purposes of the test -->
     <Class name="org.apache.catalina.valves.TestStuckThreadDetectionValve$StickingServlet"/>
     <Field name="wasInterrupted"/>
     <Bug pattern="MSF_MUTABLE_SERVLET_FIELD"/>
+  </Match>
+  <Match>
+    <!-- Concrete Map type not affected -->
+    <Class name="org.apache.catalina.util.TestParameterMap" />
+    <Method name="testEntrySetImmutabilityAfterLocked" />
+    <Bug pattern="DMI_ENTRY_SETS_MAY_REUSE_ENTRY_OBJECTS" />
   </Match>
   <Match>
     <!-- Code is deliberately unused -->

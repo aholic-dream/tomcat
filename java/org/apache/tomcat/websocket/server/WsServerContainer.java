@@ -19,11 +19,13 @@ package org.apache.tomcat.websocket.server;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
@@ -35,6 +37,7 @@ import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;
 import javax.websocket.DeploymentException;
 import javax.websocket.Encoder;
+import javax.websocket.Endpoint;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
 import javax.websocket.server.ServerEndpointConfig;
@@ -69,15 +72,15 @@ public class WsServerContainer extends WsWebSocketContainer
     private final WsWriteTimeout wsWriteTimeout = new WsWriteTimeout();
 
     private final ServletContext servletContext;
-    private final Map<String,ExactPathMatch> configExactMatchMap = new ConcurrentHashMap<>();
-    private final Map<Integer,ConcurrentSkipListMap<String,TemplatePathMatch>> configTemplateMatchMap =
+    private final Map<String,ServerEndpointConfig> configExactMatchMap =
+            new ConcurrentHashMap<>();
+    private final Map<Integer,SortedSet<TemplatePathMatch>> configTemplateMatchMap =
             new ConcurrentHashMap<>();
     private volatile boolean enforceNoAddAfterHandshake =
             org.apache.tomcat.websocket.Constants.STRICT_SPEC_COMPLIANCE;
     private volatile boolean addAllowed = true;
     private final Map<String,Set<WsSession>> authenticatedSessions = new ConcurrentHashMap<>();
     private volatile boolean endpointsRegistered = false;
-    private volatile boolean deploymentFailed = false;
 
     WsServerContainer(ServletContext servletContext) {
 
@@ -124,12 +127,8 @@ public class WsServerContainer extends WsWebSocketContainer
      *         requested
      */
     @Override
-    public void addEndpoint(ServerEndpointConfig sec) throws DeploymentException {
-        addEndpoint(sec, false);
-    }
-
-
-    void addEndpoint(ServerEndpointConfig sec, boolean fromAnnotatedPojo) throws DeploymentException {
+    public void addEndpoint(ServerEndpointConfig sec)
+            throws DeploymentException {
 
         if (enforceNoAddAfterHandshake && !addAllowed) {
             throw new DeploymentException(
@@ -140,79 +139,50 @@ public class WsServerContainer extends WsWebSocketContainer
             throw new DeploymentException(
                     sm.getString("serverContainer.servletContextMissing"));
         }
+        String path = sec.getPath();
 
-        if (deploymentFailed) {
-            throw new DeploymentException(sm.getString("serverContainer.failedDeployment",
-                    servletContext.getContextPath(), servletContext.getVirtualServerName()));
+        // Add method mapping to user properties
+        PojoMethodMapping methodMapping = new PojoMethodMapping(sec.getEndpointClass(),
+                sec.getDecoders(), path);
+        if (methodMapping.getOnClose() != null || methodMapping.getOnOpen() != null
+                || methodMapping.getOnError() != null || methodMapping.hasMessageHandlers()) {
+            sec.getUserProperties().put(org.apache.tomcat.websocket.pojo.Constants.POJO_METHOD_MAPPING_KEY,
+                    methodMapping);
         }
 
-        try {
-            String path = sec.getPath();
-
-            // Add method mapping to user properties
-            PojoMethodMapping methodMapping = new PojoMethodMapping(sec.getEndpointClass(),
-                    sec.getDecoders(), path);
-            if (methodMapping.getOnClose() != null || methodMapping.getOnOpen() != null
-                    || methodMapping.getOnError() != null || methodMapping.hasMessageHandlers()) {
-                sec.getUserProperties().put(org.apache.tomcat.websocket.pojo.Constants.POJO_METHOD_MAPPING_KEY,
-                        methodMapping);
+        UriTemplate uriTemplate = new UriTemplate(path);
+        if (uriTemplate.hasParameters()) {
+            Integer key = Integer.valueOf(uriTemplate.getSegmentCount());
+            SortedSet<TemplatePathMatch> templateMatches =
+                    configTemplateMatchMap.get(key);
+            if (templateMatches == null) {
+                // Ensure that if concurrent threads execute this block they
+                // both end up using the same TreeSet instance
+                templateMatches = new TreeSet<>(
+                        TemplatePathMatchComparator.getInstance());
+                configTemplateMatchMap.putIfAbsent(key, templateMatches);
+                templateMatches = configTemplateMatchMap.get(key);
             }
-
-            UriTemplate uriTemplate = new UriTemplate(path);
-            if (uriTemplate.hasParameters()) {
-                Integer key = Integer.valueOf(uriTemplate.getSegmentCount());
-                ConcurrentSkipListMap<String,TemplatePathMatch> templateMatches =
-                        configTemplateMatchMap.get(key);
-                if (templateMatches == null) {
-                    // Ensure that if concurrent threads execute this block they
-                    // all end up using the same ConcurrentSkipListMap instance
-                    templateMatches = new ConcurrentSkipListMap<>();
-                    configTemplateMatchMap.putIfAbsent(key, templateMatches);
-                    templateMatches = configTemplateMatchMap.get(key);
-                }
-                TemplatePathMatch newMatch = new TemplatePathMatch(sec, uriTemplate, fromAnnotatedPojo);
-                TemplatePathMatch oldMatch = templateMatches.putIfAbsent(uriTemplate.getNormalizedPath(), newMatch);
-                if (oldMatch != null) {
-                    // Note: This depends on Endpoint instances being added
-                    //       before POJOs in WsSci#onStartup()
-                    if (oldMatch.isFromAnnotatedPojo() && !newMatch.isFromAnnotatedPojo() &&
-                            oldMatch.getConfig().getEndpointClass() == newMatch.getConfig().getEndpointClass()) {
-                        // The WebSocket spec says to ignore the new match in this case
-                        templateMatches.put(path, oldMatch);
-                    } else {
-                        // Duplicate uriTemplate;
-                        throw new DeploymentException(
-                                sm.getString("serverContainer.duplicatePaths", path,
-                                             sec.getEndpointClass(),
-                                             sec.getEndpointClass()));
-                    }
-                }
-            } else {
-                // Exact match
-                ExactPathMatch newMatch = new ExactPathMatch(sec, fromAnnotatedPojo);
-                ExactPathMatch oldMatch = configExactMatchMap.put(path, newMatch);
-                if (oldMatch != null) {
-                    // Note: This depends on Endpoint instances being added
-                    //       before POJOs in WsSci#onStartup()
-                    if (oldMatch.isFromAnnotatedPojo() && !newMatch.isFromAnnotatedPojo() &&
-                            oldMatch.getConfig().getEndpointClass() == newMatch.getConfig().getEndpointClass()) {
-                        // The WebSocket spec says to ignore the new match in this case
-                        configExactMatchMap.put(path, oldMatch);
-                    } else {
-                        // Duplicate path mappings
-                        throw new DeploymentException(
-                                sm.getString("serverContainer.duplicatePaths", path,
-                                             oldMatch.getConfig().getEndpointClass(),
-                                             sec.getEndpointClass()));
-                    }
-                }
+            if (!templateMatches.add(new TemplatePathMatch(sec, uriTemplate))) {
+                // Duplicate uriTemplate;
+                throw new DeploymentException(
+                        sm.getString("serverContainer.duplicatePaths", path,
+                                     sec.getEndpointClass(),
+                                     sec.getEndpointClass()));
             }
-
-            endpointsRegistered = true;
-        } catch (DeploymentException de) {
-            failDeployment();
-            throw de;
+        } else {
+            // Exact match
+            ServerEndpointConfig old = configExactMatchMap.put(path, sec);
+            if (old != null) {
+                // Duplicate path mappings
+                throw new DeploymentException(
+                        sm.getString("serverContainer.duplicatePaths", path,
+                                     old.getEndpointClass(),
+                                     sec.getEndpointClass()));
+            }
         }
+
+        endpointsRegistered = true;
     }
 
 
@@ -225,67 +195,41 @@ public class WsServerContainer extends WsWebSocketContainer
      */
     @Override
     public void addEndpoint(Class<?> pojo) throws DeploymentException {
-        addEndpoint(pojo, false);
-    }
 
-
-    void addEndpoint(Class<?> pojo, boolean fromAnnotatedPojo) throws DeploymentException {
-
-        if (deploymentFailed) {
-            throw new DeploymentException(sm.getString("serverContainer.failedDeployment",
-                    servletContext.getContextPath(), servletContext.getVirtualServerName()));
+        ServerEndpoint annotation = pojo.getAnnotation(ServerEndpoint.class);
+        if (annotation == null) {
+            throw new DeploymentException(
+                    sm.getString("serverContainer.missingAnnotation",
+                            pojo.getName()));
         }
+        String path = annotation.value();
 
+        // Validate encoders
+        validateEncoders(annotation.encoders());
+
+        // ServerEndpointConfig
         ServerEndpointConfig sec;
-
-        try {
-            ServerEndpoint annotation = pojo.getAnnotation(ServerEndpoint.class);
-            if (annotation == null) {
-                throw new DeploymentException(
-                        sm.getString("serverContainer.missingAnnotation",
-                                pojo.getName()));
+        Class<? extends Configurator> configuratorClazz =
+                annotation.configurator();
+        Configurator configurator = null;
+        if (!configuratorClazz.equals(Configurator.class)) {
+            try {
+                configurator = annotation.configurator().getConstructor().newInstance();
+            } catch (ReflectiveOperationException e) {
+                throw new DeploymentException(sm.getString(
+                        "serverContainer.configuratorFail",
+                        annotation.configurator().getName(),
+                        pojo.getClass().getName()), e);
             }
-            String path = annotation.value();
-
-            // Validate encoders
-            validateEncoders(annotation.encoders());
-
-            // ServerEndpointConfig
-            Class<? extends Configurator> configuratorClazz =
-                    annotation.configurator();
-            Configurator configurator = null;
-            if (!configuratorClazz.equals(Configurator.class)) {
-                try {
-                    configurator = annotation.configurator().getConstructor().newInstance();
-                } catch (ReflectiveOperationException e) {
-                    throw new DeploymentException(sm.getString(
-                            "serverContainer.configuratorFail",
-                            annotation.configurator().getName(),
-                            pojo.getClass().getName()), e);
-                }
-            }
-            sec = ServerEndpointConfig.Builder.create(pojo, path).
-                    decoders(Arrays.asList(annotation.decoders())).
-                    encoders(Arrays.asList(annotation.encoders())).
-                    subprotocols(Arrays.asList(annotation.subprotocols())).
-                    configurator(configurator).
-                    build();
-        } catch (DeploymentException de) {
-            failDeployment();
-            throw de;
         }
+        sec = ServerEndpointConfig.Builder.create(pojo, path).
+                decoders(Arrays.asList(annotation.decoders())).
+                encoders(Arrays.asList(annotation.encoders())).
+                subprotocols(Arrays.asList(annotation.subprotocols())).
+                configurator(configurator).
+                build();
 
-        addEndpoint(sec, fromAnnotatedPojo);
-    }
-
-
-    void failDeployment() {
-        deploymentFailed = true;
-
-        // Clear all existing deployments
-        endpointsRegistered = false;
-        configExactMatchMap.clear();
-        configTemplateMatchMap.clear();
+        addEndpoint(sec);
     }
 
 
@@ -329,9 +273,9 @@ public class WsServerContainer extends WsWebSocketContainer
         }
 
         // Check an exact match. Simple case as there are no templates.
-        ExactPathMatch match = configExactMatchMap.get(path);
-        if (match != null) {
-            return new WsMappingResult(match.getConfig(), Collections.<String, String>emptyMap());
+        ServerEndpointConfig sec = configExactMatchMap.get(path);
+        if (sec != null) {
+            return new WsMappingResult(sec, Collections.<String, String>emptyMap());
         }
 
         // No exact match. Need to look for template matches.
@@ -345,7 +289,8 @@ public class WsServerContainer extends WsWebSocketContainer
 
         // Number of segments has to match
         Integer key = Integer.valueOf(pathUriTemplate.getSegmentCount());
-        ConcurrentSkipListMap<String,TemplatePathMatch> templateMatches = configTemplateMatchMap.get(key);
+        SortedSet<TemplatePathMatch> templateMatches =
+                configTemplateMatchMap.get(key);
 
         if (templateMatches == null) {
             // No templates with an equal number of segments so there will be
@@ -355,9 +300,8 @@ public class WsServerContainer extends WsWebSocketContainer
 
         // List is in alphabetical order of normalised templates.
         // Correct match is the first one that matches.
-        ServerEndpointConfig sec = null;
         Map<String,String> pathParams = null;
-        for (TemplatePathMatch templateMatch : templateMatches.values()) {
+        for (TemplatePathMatch templateMatch : templateMatches) {
             pathParams = templateMatch.getUriTemplate().match(pathUriTemplate);
             if (pathParams != null) {
                 sec = templateMatch.getConfig();
@@ -397,8 +341,8 @@ public class WsServerContainer extends WsWebSocketContainer
      * Overridden to make it visible to other classes in this package.
      */
     @Override
-    protected void registerSession(Object key, WsSession wsSession) {
-        super.registerSession(key, wsSession);
+    protected void registerSession(Endpoint endpoint, WsSession wsSession) {
+        super.registerSession(endpoint, wsSession);
         if (wsSession.isOpen() &&
                 wsSession.getUserPrincipal() != null &&
                 wsSession.getHttpSessionId() != null) {
@@ -414,13 +358,13 @@ public class WsServerContainer extends WsWebSocketContainer
      * Overridden to make it visible to other classes in this package.
      */
     @Override
-    protected void unregisterSession(Object key, WsSession wsSession) {
+    protected void unregisterSession(Endpoint endpoint, WsSession wsSession) {
         if (wsSession.getUserPrincipal() != null &&
                 wsSession.getHttpSessionId() != null) {
             unregisterAuthenticatedSession(wsSession,
                     wsSession.getHttpSessionId());
         }
-        super.unregisterSession(key, wsSession);
+        super.unregisterSession(endpoint, wsSession);
     }
 
 
@@ -484,13 +428,11 @@ public class WsServerContainer extends WsWebSocketContainer
     private static class TemplatePathMatch {
         private final ServerEndpointConfig config;
         private final UriTemplate uriTemplate;
-        private final boolean fromAnnotatedPojo;
 
-        public TemplatePathMatch(ServerEndpointConfig config, UriTemplate uriTemplate,
-                boolean fromAnnotatedPojo) {
+        public TemplatePathMatch(ServerEndpointConfig config,
+                UriTemplate uriTemplate) {
             this.config = config;
             this.uriTemplate = uriTemplate;
-            this.fromAnnotatedPojo = fromAnnotatedPojo;
         }
 
 
@@ -502,31 +444,31 @@ public class WsServerContainer extends WsWebSocketContainer
         public UriTemplate getUriTemplate() {
             return uriTemplate;
         }
-
-
-        public boolean isFromAnnotatedPojo() {
-            return fromAnnotatedPojo;
-        }
     }
 
 
-    private static class ExactPathMatch {
-        private final ServerEndpointConfig config;
-        private final boolean fromAnnotatedPojo;
+    /**
+     * This Comparator implementation is thread-safe so only create a single
+     * instance.
+     */
+    private static class TemplatePathMatchComparator
+            implements Comparator<TemplatePathMatch> {
 
-        public ExactPathMatch(ServerEndpointConfig config, boolean fromAnnotatedPojo) {
-            this.config = config;
-            this.fromAnnotatedPojo = fromAnnotatedPojo;
+        private static final TemplatePathMatchComparator INSTANCE =
+                new TemplatePathMatchComparator();
+
+        public static TemplatePathMatchComparator getInstance() {
+            return INSTANCE;
         }
 
-
-        public ServerEndpointConfig getConfig() {
-            return config;
+        private TemplatePathMatchComparator() {
+            // Hide default constructor
         }
 
-
-        public boolean isFromAnnotatedPojo() {
-            return fromAnnotatedPojo;
+        @Override
+        public int compare(TemplatePathMatch tpm1, TemplatePathMatch tpm2) {
+            return tpm1.getUriTemplate().getNormalizedPath().compareTo(
+                    tpm2.getUriTemplate().getNormalizedPath());
         }
     }
 }

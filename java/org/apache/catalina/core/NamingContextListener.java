@@ -60,7 +60,6 @@ import org.apache.naming.ResourceLinkRef;
 import org.apache.naming.ResourceRef;
 import org.apache.naming.ServiceRef;
 import org.apache.naming.TransactionRef;
-import org.apache.naming.factory.Constants;
 import org.apache.naming.factory.ResourceLinkFactory;
 import org.apache.tomcat.util.descriptor.web.ContextEjb;
 import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
@@ -1011,21 +1010,16 @@ public class NamingContextListener
         if (("javax.sql.DataSource".equals(ref.getClassName())  ||
             "javax.sql.XADataSource".equals(ref.getClassName())) &&
                 resource.getSingleton()) {
-            Object actualResource = null;
             try {
                 ObjectName on = createObjectName(resource);
-                actualResource = envCtx.lookup(resource.getName());
+                Object actualResource = envCtx.lookup(resource.getName());
                 Registry.getRegistry(null, null).registerComponent(actualResource, on, null);
                 objectNames.put(resource.getName(), on);
             } catch (Exception e) {
                 log.warn(sm.getString("naming.jmxRegistrationFailed", e));
             }
-            // Bug 63210. DBCP2 DataSources require an explicit close. This goes
-            // further and cleans up and AutoCloseable DataSource by default.
-            if (actualResource instanceof AutoCloseable && !resource.getCloseMethodConfigured()) {
-                resource.setCloseMethod("close");
-            }
         }
+
     }
 
 
@@ -1102,11 +1096,7 @@ public class NamingContextListener
     private javax.naming.Context getGlobalNamingContext() {
         if (container instanceof Context) {
             Engine e = (Engine) ((Context) container).getParent().getParent();
-            Server s = e.getService().getServer();
-            // When the Service is an embedded Service, there is no Server
-            if (s != null) {
-                return s.getGlobalNamingContext();
-            }
+            return e.getService().getServer().getGlobalNamingContext();
         }
         return null;
     }
@@ -1122,7 +1112,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1138,7 +1128,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1154,7 +1144,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1171,7 +1161,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1187,7 +1177,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1203,7 +1193,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
         ObjectName on = objectNames.get(name);
@@ -1226,7 +1216,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1242,7 +1232,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", name), e);
+            log.error(sm.getString("naming.unbindFailed", e));
         }
 
         ResourceLinkFactory.deregisterGlobalResourceAccess(getGlobalNamingContext(), name);

@@ -120,7 +120,7 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
                     result = new char[buf.length()];
                     buf.getChars(0, result.length, result, 0);
                 } catch (IOException e) {
-                    log.error(Localizer.getMessage("jsp.error.compilation.source", sourceFile), e);
+                    log.error("Compilation error", e);
                 }
                 return result;
             }
@@ -215,9 +215,9 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
                                 new NameEnvironmentAnswer(classFileReader, null);
                         }
                     } catch (IOException exc) {
-                        log.error(Localizer.getMessage("jsp.error.compilation.dependent", className), exc);
+                        log.error("Compilation error", exc);
                     } catch (org.eclipse.jdt.internal.compiler.classfmt.ClassFormatException exc) {
-                        log.error(Localizer.getMessage("jsp.error.compilation.dependent", className), exc);
+                        log.error("Compilation error", exc);
                     }
                     return null;
                 }
@@ -321,19 +321,8 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
             } else if(opt.equals("10")) {
                 settings.put(CompilerOptions.OPTION_Source,
                              CompilerOptions.VERSION_10);
-            } else if(opt.equals("11")) {
-                settings.put(CompilerOptions.OPTION_Source,
-                             CompilerOptions.VERSION_11);
-            } else if(opt.equals("12")) {
-                settings.put(CompilerOptions.OPTION_Source,
-                             CompilerOptions.VERSION_12);
-            } else if(opt.equals("13")) {
-                // Constant not available in latest ECJ version shipped with
-                // Tomcat. May be supported in a snapshot build.
-                // This is checked against the actual version below.
-                settings.put(CompilerOptions.OPTION_Source, "13");
             } else {
-                log.warn(Localizer.getMessage("jsp.warning.unknown.sourceVM", opt));
+                log.warn("Unknown source VM " + opt + " ignored.");
                 settings.put(CompilerOptions.OPTION_Source,
                         CompilerOptions.VERSION_1_8);
             }
@@ -390,24 +379,8 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
                         CompilerOptions.VERSION_10);
                 settings.put(CompilerOptions.OPTION_Compliance,
                         CompilerOptions.VERSION_10);
-            } else if(opt.equals("11")) {
-                settings.put(CompilerOptions.OPTION_TargetPlatform,
-                        CompilerOptions.VERSION_11);
-                settings.put(CompilerOptions.OPTION_Compliance,
-                        CompilerOptions.VERSION_11);
-            } else if(opt.equals("12")) {
-                settings.put(CompilerOptions.OPTION_TargetPlatform,
-                        CompilerOptions.VERSION_12);
-                settings.put(CompilerOptions.OPTION_Compliance,
-                        CompilerOptions.VERSION_12);
-            } else if(opt.equals("13")) {
-                // Constant not available in latest ECJ version shipped with
-                // Tomcat. May be supported in a snapshot build.
-                // This is checked against the actual version below.
-                settings.put(CompilerOptions.OPTION_TargetPlatform, "13");
-                settings.put(CompilerOptions.OPTION_Compliance, "13");
             } else {
-                log.warn(Localizer.getMessage("jsp.warning.unknown.targetVM", opt));
+                log.warn("Unknown target VM " + opt + " ignored.");
                 settings.put(CompilerOptions.OPTION_TargetPlatform,
                         CompilerOptions.VERSION_1_8);
             }
@@ -438,7 +411,7 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
                                                 (name, pageNodes, new StringBuilder(problem.getMessage()),
                                                         problem.getSourceLineNumber(), ctxt));
                                     } catch (JasperException e) {
-                                        log.error(Localizer.getMessage("jsp.error.compilation.jdtProblemError"), e);
+                                        log.error("Error visiting node", e);
                                     }
                                 }
                             }
@@ -466,7 +439,7 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
                             }
                         }
                     } catch (IOException exc) {
-                        log.error(Localizer.getMessage("jsp.error.compilation.jdt"), exc);
+                        log.error("Compilation error", exc);
                     }
                 }
             };
@@ -478,25 +451,6 @@ public class JDTCompiler extends org.apache.jasper.compiler.Compiler {
             compilationUnits[i] = new CompilationUnit(fileNames[i], className);
         }
         CompilerOptions cOptions = new CompilerOptions(settings);
-
-        // Check source/target JDK versions as the newest versions are allowed
-        // in Tomcat configuration but may not be supported by the ECJ version
-        // being used.
-        String requestedSource = ctxt.getOptions().getCompilerSourceVM();
-        if (requestedSource != null) {
-            String actualSource = CompilerOptions.versionFromJdkLevel(cOptions.sourceLevel);
-            if (!requestedSource.equals(actualSource)) {
-                log.warn(Localizer.getMessage("jsp.warning.unsupported.sourceVM", requestedSource, actualSource));
-            }
-        }
-        String requestedTarget = ctxt.getOptions().getCompilerTargetVM();
-        if (requestedTarget != null) {
-            String actualTarget = CompilerOptions.versionFromJdkLevel(cOptions.targetJDK);
-            if (!requestedTarget.equals(actualTarget)) {
-                log.warn(Localizer.getMessage("jsp.warning.unsupported.targetVM", requestedTarget, actualTarget));
-            }
-        }
-
         cOptions.parseLiteralExpressionsAsConstants = true;
         Compiler compiler = new Compiler(env,
                                          policy,

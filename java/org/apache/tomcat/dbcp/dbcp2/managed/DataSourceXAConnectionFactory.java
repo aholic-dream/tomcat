@@ -51,6 +51,21 @@ public class DataSourceXAConnectionFactory implements XAConnectionFactory {
      *            the transaction manager in which connections will be enlisted
      * @param xaDataSource
      *            the data source from which connections will be retrieved
+     * @param transactionSynchronizationRegistry
+     *            register with this TransactionSynchronizationRegistry
+     */
+    public DataSourceXAConnectionFactory(final TransactionManager transactionManager, final XADataSource xaDataSource, final TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
+        this(transactionManager, xaDataSource, null, (char[]) null, transactionSynchronizationRegistry);
+    }
+
+    /**
+     * Creates an DataSourceXAConnectionFactory which uses the specified XADataSource to create database connections.
+     * The connections are enlisted into transactions using the specified transaction manager.
+     *
+     * @param transactionManager
+     *            the transaction manager in which connections will be enlisted
+     * @param xaDataSource
+     *            the data source from which connections will be retrieved
      * @since 2.6.0
      */
     public DataSourceXAConnectionFactory(final TransactionManager transactionManager, final XADataSource xaDataSource) {
@@ -123,18 +138,48 @@ public class DataSourceXAConnectionFactory implements XAConnectionFactory {
     }
 
     /**
-     * Creates an DataSourceXAConnectionFactory which uses the specified XADataSource to create database connections.
-     * The connections are enlisted into transactions using the specified transaction manager.
+     * Gets the user name used to authenticate new connections.
      *
-     * @param transactionManager
-     *            the transaction manager in which connections will be enlisted
-     * @param xaDataSource
-     *            the data source from which connections will be retrieved
-     * @param transactionSynchronizationRegistry
-     *            register with this TransactionSynchronizationRegistry
+     * @return the user name or null if unauthenticated connections are used
      */
-    public DataSourceXAConnectionFactory(final TransactionManager transactionManager, final XADataSource xaDataSource, final TransactionSynchronizationRegistry transactionSynchronizationRegistry) {
-        this(transactionManager, xaDataSource, null, (char[]) null, transactionSynchronizationRegistry);
+    public String getUsername() {
+        return userName;
+    }
+
+    /**
+     * Sets the user name used to authenticate new connections.
+     *
+     * @param userName
+     *            the user name used for authenticating the connection or null for unauthenticated
+     */
+    public void setUsername(final String userName) {
+        this.userName = userName;
+    }
+
+    /**
+     * Sets the password used to authenticate new connections.
+     *
+     * @param userPassword
+     *            the password used for authenticating the connection or null for unauthenticated.
+     * @since 2.4.0
+     */
+    public void setPassword(final char[] userPassword) {
+        this.userPassword = userPassword;
+    }
+
+    /**
+     * Sets the password used to authenticate new connections.
+     *
+     * @param userPassword
+     *            the password used for authenticating the connection or null for unauthenticated
+     */
+    public void setPassword(final String userPassword) {
+        this.userPassword = Utils.toCharArray(userPassword);
+    }
+
+    @Override
+    public TransactionRegistry getTransactionRegistry() {
+        return transactionRegistry;
     }
 
     @Override
@@ -178,70 +223,5 @@ public class DataSourceXAConnectionFactory implements XAConnectionFactory {
         });
 
         return connection;
-    }
-
-    @Override
-    public TransactionRegistry getTransactionRegistry() {
-        return transactionRegistry;
-    }
-
-    /**
-     * Gets the user name used to authenticate new connections.
-     *
-     * @return the user name or null if unauthenticated connections are used
-     * @deprecated Use {@link #getUserName()}.
-     */
-    @Deprecated
-    public String getUsername() {
-        return userName;
-    }
-
-    /**
-     * Gets the user name used to authenticate new connections.
-     *
-     * @return the user name or null if unauthenticated connections are used
-     * @since 2.6.0
-     */
-    public String getUserName() {
-        return userName;
-    }
-
-    public char[] getUserPassword() {
-        return userPassword;
-    }
-
-    public XADataSource getXaDataSource() {
-        return xaDataSource;
-    }
-
-    /**
-     * Sets the password used to authenticate new connections.
-     *
-     * @param userPassword
-     *            the password used for authenticating the connection or null for unauthenticated.
-     * @since 2.4.0
-     */
-    public void setPassword(final char[] userPassword) {
-        this.userPassword = userPassword;
-    }
-
-    /**
-     * Sets the password used to authenticate new connections.
-     *
-     * @param userPassword
-     *            the password used for authenticating the connection or null for unauthenticated
-     */
-    public void setPassword(final String userPassword) {
-        this.userPassword = Utils.toCharArray(userPassword);
-    }
-
-    /**
-     * Sets the user name used to authenticate new connections.
-     *
-     * @param userName
-     *            the user name used for authenticating the connection or null for unauthenticated
-     */
-    public void setUsername(final String userName) {
-        this.userName = userName;
     }
 }

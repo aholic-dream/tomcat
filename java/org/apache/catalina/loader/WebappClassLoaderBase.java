@@ -51,7 +51,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -137,16 +136,15 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     private static final String CLASS_FILE_SUFFIX = ".class";
 
     static {
-        if (!JreCompat.isGraalAvailable()) {
-            ClassLoader.registerAsParallelCapable();
-        }
+        ClassLoader.registerAsParallelCapable();
         JVM_THREAD_GROUP_NAMES.add(JVM_THREAD_GROUP_SYSTEM);
         JVM_THREAD_GROUP_NAMES.add("RMI Runtime");
     }
 
-    protected class PrivilegedFindClassByName implements PrivilegedAction<Class<?>> {
+    protected class PrivilegedFindClassByName
+        implements PrivilegedAction<Class<?>> {
 
-        private final String name;
+        protected final String name;
 
         PrivilegedFindClassByName(String name) {
             this.name = name;
@@ -159,9 +157,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    protected static final class PrivilegedGetClassLoader implements PrivilegedAction<ClassLoader> {
+    protected static final class PrivilegedGetClassLoader
+        implements PrivilegedAction<ClassLoader> {
 
-        private final Class<?> clazz;
+        public final Class<?> clazz;
 
         public PrivilegedGetClassLoader(Class<?> clazz){
             this.clazz = clazz;
@@ -170,21 +169,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         @Override
         public ClassLoader run() {
             return clazz.getClassLoader();
-        }
-    }
-
-
-    protected final class PrivilegedJavaseGetResource implements PrivilegedAction<URL> {
-
-        private final String name;
-
-        public PrivilegedJavaseGetResource(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public URL run() {
-            return javaseClassLoader.getResource(name);
         }
     }
 
@@ -327,7 +311,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
     /**
      * The bootstrap class loader used to load the JavaSE classes. In some
-     * implementations this class loader is always <code>null</code> and in
+     * implementations this class loader is always <code>null</null> and in
      * those cases {@link ClassLoader#getParent()} will be called recursively on
      * the system class loader and the last non-null result used.
      */
@@ -383,12 +367,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * loader from the ObjectStreamClass caches?
      */
     private boolean clearReferencesObjectStreamClassCaches = true;
-
-    /**
-     * Should Tomcat attempt to clear references to classes loaded by this class
-     * loader from ThreadLocals?
-     */
-    private boolean clearReferencesThreadLocals = true;
 
     /**
      * Should Tomcat skip the memory leak checks when the web application is
@@ -642,16 +620,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    public boolean getClearReferencesThreadLocals() {
-        return clearReferencesThreadLocals;
-    }
-
-
-    public void setClearReferencesThreadLocals(boolean clearReferencesThreadLocals) {
-        this.clearReferencesThreadLocals = clearReferencesThreadLocals;
-    }
-
-
     public boolean getSkipMemoryLeakChecksOnJvmShutdown() {
         return skipMemoryLeakChecksOnJvmShutdown;
     }
@@ -865,8 +833,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     clazz = findClassInternal(name);
                 }
             } catch(AccessControlException ace) {
-                log.warn(sm.getString("webappClassLoader.securityException", name,
-                        ace.getMessage()), ace);
+                log.warn("WebappClassLoader.findClassInternal(" + name
+                        + ") security exception: " + ace.getMessage(), ace);
                 throw new ClassNotFoundException(name, ace);
             } catch (RuntimeException e) {
                 if (log.isTraceEnabled())
@@ -877,8 +845,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 try {
                     clazz = super.findClass(name);
                 } catch(AccessControlException ace) {
-                    log.warn(sm.getString("webappClassLoader.securityException", name,
-                            ace.getMessage()), ace);
+                    log.warn("WebappClassLoader.findClassInternal(" + name
+                            + ") security exception: " + ace.getMessage(), ace);
                     throw new ClassNotFoundException(name, ace);
                 } catch (RuntimeException e) {
                     if (log.isTraceEnabled())
@@ -1079,24 +1047,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    @Override
-    public Enumeration<URL> getResources(String name) throws IOException {
-
-        Enumeration<URL> parentResources = getParent().getResources(name);
-        Enumeration<URL> localResources = findResources(name);
-
-        // Need to combine these enumerations. The order in which the
-        // Enumerations are combined depends on how delegation is configured
-        boolean delegateFirst = delegate || filter(name, false);
-
-        if (delegateFirst) {
-            return new CombinedEnumeration(parentResources, localResources);
-        } else {
-            return new CombinedEnumeration(localResources, parentResources);
-        }
-    }
-
-
     /**
      * Find the resource with the given name, and return an input stream
      * that can be used for reading it.  The search order is as described
@@ -1217,7 +1167,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 
-        synchronized (JreCompat.isGraalAvailable() ? this : getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLock(name)) {
             if (log.isDebugEnabled())
                 log.debug("loadClass(" + name + ", " + resolve + ")");
             Class<?> clazz = null;
@@ -1236,7 +1186,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             // (0.1) Check our previously loaded class cache
-            clazz = JreCompat.isGraalAvailable() ? null : findLoadedClass(name);
+            clazz = findLoadedClass(name);
             if (clazz != null) {
                 if (log.isDebugEnabled())
                     log.debug("  Returning class from cache");
@@ -1263,14 +1213,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 // details of how this may trigger a StackOverflowError
                 // Given these reported errors, catch Throwable to ensure any
                 // other edge cases are also caught
-                URL url;
-                if (securityManager != null) {
-                    PrivilegedAction<URL> dp = new PrivilegedJavaseGetResource(resourceName);
-                    url = AccessController.doPrivileged(dp);
-                } else {
-                    url = javaseLoader.getResource(resourceName);
-                }
-                tryLoadingFromJavaseLoader = (url != null);
+                tryLoadingFromJavaseLoader = (javaseLoader.getResource(resourceName) != null);
             } catch (Throwable t) {
                 // Swallow all exceptions apart from those that must be re-thrown
                 ExceptionUtils.handleThrowable(t);
@@ -1300,7 +1243,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     try {
                         securityManager.checkPackageAccess(name.substring(0,i));
                     } catch (SecurityException se) {
-                        String error = sm.getString("webappClassLoader.restrictedPackage", name);
+                        String error = "Security Violation, attempt to use " +
+                            "Restricted Class: " + name;
                         log.info(error, se);
                         throw new ClassNotFoundException(error, se);
                     }
@@ -1521,11 +1465,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
         state = LifecycleState.STARTING_PREP;
 
-        WebResource[] classesResources = resources.getResources("/WEB-INF/classes");
-        for (WebResource classes : classesResources) {
-            if (classes.isDirectory() && classes.canRead()) {
-                localRepositories.add(classes.getURL());
-            }
+        WebResource classes = resources.getResource("/WEB-INF/classes");
+        if (classes.isDirectory() && classes.canRead()) {
+            localRepositories.add(classes.getURL());
         }
         WebResource[] jars = resources.listResources("/WEB-INF/lib");
         for (WebResource jar : jars) {
@@ -1614,23 +1556,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
         }
 
-        if (!JreCompat.isGraalAvailable()) {
-            // De-register any remaining JDBC drivers
-            clearReferencesJdbc();
-        }
+        // De-register any remaining JDBC drivers
+        clearReferencesJdbc();
 
         // Stop any threads the web application started
         clearReferencesThreads();
 
         // Clear any references retained in the serialization caches
-        if (clearReferencesObjectStreamClassCaches && !JreCompat.isGraalAvailable()) {
+        if (clearReferencesObjectStreamClassCaches) {
             clearReferencesObjectStreamClassCaches();
         }
 
         // Check for leaks triggered by ThreadLocals loaded by this class loader
-        if (clearReferencesThreadLocals && !JreCompat.isGraalAvailable()) {
-            checkThreadLocalsForLeaks();
-        }
+        checkThreadLocalsForLeaks();
 
         // Clear RMI Targets loaded by this class loader
         if (clearReferencesRmiTargets) {
@@ -1763,7 +1701,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                                 getContextName(), threadName, getStackTrace(thread)));
                     }
 
-                    // Don't try and stop the threads unless explicitly
+                    // Don't try an stop the threads unless explicitly
                     // configured to do so
                     if (!clearReferencesStopThreads) {
                         continue;
@@ -2327,7 +2265,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (clazz != null)
             return clazz;
 
-        synchronized (JreCompat.isGraalAvailable() ? this : getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLock(name)) {
             clazz = entry.loadedClass;
             if (clazz != null)
                 return clazz;
@@ -2341,11 +2279,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             byte[] binaryContent = resource.getContent();
-            if (binaryContent == null) {
-                // Something went wrong reading the class bytes (and will have
-                // been logged at debug level).
-                return null;
-            }
             Manifest manifest = resource.getManifest();
             URL codeBase = resource.getCodeBase();
             Certificate[] certificates = resource.getCertificates();
@@ -2665,45 +2598,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         @Override
         public Boolean run() {
             return Boolean.valueOf(findResource("logging.properties") != null);
-        }
-    }
-
-
-    private static class CombinedEnumeration implements Enumeration<URL> {
-
-        private final Enumeration<URL>[] sources;
-        private int index = 0;
-
-        public CombinedEnumeration(Enumeration<URL> enum1, Enumeration<URL> enum2) {
-            @SuppressWarnings("unchecked")
-            Enumeration<URL>[] sources = new Enumeration[] { enum1, enum2 };
-            this.sources = sources;
-        }
-
-
-        @Override
-        public boolean hasMoreElements() {
-            return inc();
-        }
-
-
-        @Override
-        public URL nextElement() {
-            if (inc()) {
-                return sources[index].nextElement();
-            }
-            throw new NoSuchElementException();
-        }
-
-
-        private boolean inc() {
-            while (index < sources.length) {
-                if (sources[index].hasMoreElements()) {
-                    return true;
-                }
-                index++;
-            }
-            return false;
         }
     }
 }

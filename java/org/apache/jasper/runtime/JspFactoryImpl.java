@@ -38,6 +38,7 @@ import org.apache.jasper.Constants;
  */
 public class JspFactoryImpl extends JspFactory {
 
+    private static final String SPEC_VERSION = "2.3";
     private static final boolean USE_POOL =
         Boolean.parseBoolean(System.getProperty("org.apache.jasper.runtime.JspFactoryImpl.USE_POOL", "true"));
     private static final int POOL_SIZE =
@@ -80,7 +81,7 @@ public class JspFactoryImpl extends JspFactory {
         return new JspEngineInfo() {
             @Override
             public String getSpecificationVersion() {
-                return Constants.SPEC_VERSION;
+                return SPEC_VERSION;
             }
         };
     }

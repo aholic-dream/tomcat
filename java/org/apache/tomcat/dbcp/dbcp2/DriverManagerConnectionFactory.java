@@ -38,14 +38,6 @@ public class DriverManagerConnectionFactory implements ConnectionFactory {
         DriverManager.getDrivers();
     }
 
-    private final String connectionUri;
-
-    private final String userName;
-
-    private final char[] userPassword;
-
-    private final Properties properties;
-
     /**
      * Constructor for DriverManagerConnectionFactory.
      *
@@ -56,8 +48,6 @@ public class DriverManagerConnectionFactory implements ConnectionFactory {
     public DriverManagerConnectionFactory(final String connectionUri) {
         this.connectionUri = connectionUri;
         this.properties = new Properties();
-        this.userName = null;
-        this.userPassword = null;
     }
 
     /**
@@ -72,26 +62,6 @@ public class DriverManagerConnectionFactory implements ConnectionFactory {
     public DriverManagerConnectionFactory(final String connectionUri, final Properties properties) {
         this.connectionUri = connectionUri;
         this.properties = properties;
-        this.userName = null;
-        this.userPassword = null;
-    }
-
-    /**
-     * Constructor for DriverManagerConnectionFactory.
-     *
-     * @param connectionUri
-     *            a database url of the form <code>jdbc:<em>subprotocol</em>:<em>subname</em></code>
-     * @param userName
-     *            the database user
-     * @param userPassword
-     *            the user's password
-     */
-    public DriverManagerConnectionFactory(final String connectionUri, final String userName,
-            final char[] userPassword) {
-        this.connectionUri = connectionUri;
-        this.userName = userName;
-        this.userPassword = Utils.clone(userPassword);
-        this.properties = null;
     }
 
     /**
@@ -108,8 +78,7 @@ public class DriverManagerConnectionFactory implements ConnectionFactory {
             final String userPassword) {
         this.connectionUri = connectionUri;
         this.userName = userName;
-        this.userPassword =  Utils.toCharArray(userPassword);
-        this.properties = null;
+        this.userPassword = userPassword;
     }
 
     @Override
@@ -118,32 +87,13 @@ public class DriverManagerConnectionFactory implements ConnectionFactory {
             if (userName == null && userPassword == null) {
                 return DriverManager.getConnection(connectionUri);
             }
-            return DriverManager.getConnection(connectionUri, userName, Utils.toString(userPassword));
+            return DriverManager.getConnection(connectionUri, userName, userPassword);
         }
         return DriverManager.getConnection(connectionUri, properties);
     }
 
-    /**
-     * @return The connection URI.
-     * @since 2.6.0
-     */
-    public String getConnectionUri() {
-        return connectionUri;
-    }
-
-    /**
-     * @return The Properties.
-     * @since 2.6.0
-     */
-    public Properties getProperties() {
-        return properties;
-    }
-
-    /**
-     * @return The user name.
-     * @since 2.6.0
-     */
-    public String getUserName() {
-        return userName;
-    }
+    private final String connectionUri;
+    private String userName;
+    private String userPassword;
+    private Properties properties;
 }

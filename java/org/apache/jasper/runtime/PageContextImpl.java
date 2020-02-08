@@ -132,7 +132,8 @@ public class PageContextImpl extends PageContext {
         if (request instanceof HttpServletRequest && needsSession)
             this.session = ((HttpServletRequest) request).getSession();
         if (needsSession && session == null)
-            throw new IllegalStateException(Localizer.getMessage("jsp.error.page.sessionRequired"));
+            throw new IllegalStateException(
+                    "Page needs a session and none is available");
 
         // initialize the initial out ...
         depth = -1;
@@ -229,7 +230,7 @@ public class PageContextImpl extends PageContext {
             return context.getAttribute(name);
 
         default:
-            throw new IllegalArgumentException(Localizer.getMessage("jsp.error.page.invalid.scope"));
+            throw new IllegalArgumentException("Invalid scope");
         }
     }
 
@@ -303,7 +304,7 @@ public class PageContextImpl extends PageContext {
             break;
 
         default:
-            throw new IllegalArgumentException(Localizer.getMessage("jsp.error.page.invalid.scope"));
+            throw new IllegalArgumentException("Invalid scope");
         }
     }
 
@@ -389,7 +390,7 @@ public class PageContextImpl extends PageContext {
             return context.getAttributeNames();
 
         default:
-            throw new IllegalArgumentException(Localizer.getMessage("jsp.error.page.invalid.scope"));
+            throw new IllegalArgumentException("Invalid scope");
         }
     }
 
@@ -599,7 +600,7 @@ public class PageContextImpl extends PageContext {
     @SuppressWarnings("deprecation") // Still jave to support old JSP EL
     public void handlePageException(final Throwable t) throws IOException, ServletException {
         if (t == null) {
-            throw new NullPointerException(Localizer.getMessage("jsp.error.page.nullThrowable"));
+            throw new NullPointerException("null Throwable");
         }
 
         if (errorPageURL != null && !errorPageURL.equals("")) {

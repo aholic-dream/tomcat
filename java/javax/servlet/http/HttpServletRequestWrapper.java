@@ -116,11 +116,8 @@ public class HttpServletRequestWrapper extends ServletRequestWrapper implements
     }
 
     /**
-     * The default behavior of this method is to return
-     * {@link HttpServletRequest#getHttpServletMapping()} on the wrapped request
-     * object.
-     *
-     * @since Servlet 4.0
+     * The default behavior of this method is to return getMapping() on the
+     * wrapped request object.
      */
     @Override
     public HttpServletMapping getHttpServletMapping() {

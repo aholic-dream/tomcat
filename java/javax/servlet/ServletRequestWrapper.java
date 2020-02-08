@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
-import java.util.ResourceBundle;
 
 /**
  * Provides a convenient implementation of the ServletRequest interface that can
@@ -33,10 +32,6 @@ import java.util.ResourceBundle;
  * @see javax.servlet.ServletRequest
  */
 public class ServletRequestWrapper implements ServletRequest {
-    private static final String LSTRING_FILE = "javax.servlet.LocalStrings";
-    private static final ResourceBundle lStrings =
-        ResourceBundle.getBundle(LSTRING_FILE);
-
     private ServletRequest request;
 
     /**
@@ -48,7 +43,7 @@ public class ServletRequestWrapper implements ServletRequest {
      */
     public ServletRequestWrapper(ServletRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException(lStrings.getString("wrapper.nullRequest"));
+            throw new IllegalArgumentException("Request cannot be null");
         }
         this.request = request;
     }
@@ -69,7 +64,7 @@ public class ServletRequestWrapper implements ServletRequest {
      */
     public void setRequest(ServletRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException(lStrings.getString("wrapper.nullRequest"));
+            throw new IllegalArgumentException("Request cannot be null");
         }
         this.request = request;
     }

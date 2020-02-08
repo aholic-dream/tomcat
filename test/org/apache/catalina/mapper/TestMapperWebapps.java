@@ -18,6 +18,8 @@ package org.apache.catalina.mapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -184,11 +186,14 @@ public class TestMapperWebapps extends TomcatBaseTest{
 
         tomcat.start();
         ByteChunk bc = new ByteChunk();
-        int rc = getUrl("http://localhost:" + getPort() + "/test/welcome-files", bc, null);
+        int rc = getUrl("http://localhost:" + getPort() +
+                "/test/welcome-files", bc, new HashMap<String,List<String>>());
         Assert.assertEquals(HttpServletResponse.SC_OK, rc);
         Assert.assertTrue(bc.toString().contains("JSP"));
 
-        rc = getUrl("http://localhost:" + getPort() + "/test/welcome-files/sub", bc, null);
+        rc = getUrl("http://localhost:" + getPort() +
+                "/test/welcome-files/sub", bc,
+                new HashMap<String,List<String>>());
         Assert.assertEquals(HttpServletResponse.SC_OK, rc);
         Assert.assertTrue(bc.toString().contains("Servlet"));
     }
@@ -212,11 +217,14 @@ public class TestMapperWebapps extends TomcatBaseTest{
 
         tomcat.start();
         ByteChunk bc = new ByteChunk();
-        int rc = getUrl("http://localhost:" + getPort() + "/test/welcome-files", bc, null);
+        int rc = getUrl("http://localhost:" + getPort() +
+                "/test/welcome-files", bc, new HashMap<String,List<String>>());
         Assert.assertEquals(HttpServletResponse.SC_OK, rc);
         Assert.assertTrue(bc.toString().contains("JSP"));
 
-        rc = getUrl("http://localhost:" + getPort() + "/test/welcome-files/sub", bc, null);
+        rc = getUrl("http://localhost:" + getPort() +
+                "/test/welcome-files/sub", bc,
+                new HashMap<String,List<String>>());
         Assert.assertEquals(HttpServletResponse.SC_NOT_FOUND, rc);
     }
 

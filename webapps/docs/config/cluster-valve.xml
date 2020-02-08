@@ -46,7 +46,7 @@
 </section>
 
 <section name="org.apache.catalina.ha.tcp.ReplicationValve">
-  The <code>ReplicationValve</code> will notify the cluster at the end of an HTTP request
+  The <code>ReplicationValve</code> will notify the cluster at the end of a HTTP request
   so that the cluster can make a decision whether there is data to be replicated or not.
   <subsection name="Attributes">
     <attributes>
@@ -113,7 +113,7 @@
   <p>See the <a href="host.html#Single_Sign_On">Single Sign On</a> special
     feature on the <strong>Host</strong> element for more information.</p>
 
-  <p><strong>Note:</strong> ClusterSingleSignOn can be configured at host level cluster only.
+  <p><strong>Note: </strong>ClusterSingleSignOn can be configured at host level cluster only.
   </p>
 
   <subsection name="Attributes">

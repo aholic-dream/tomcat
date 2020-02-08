@@ -31,7 +31,7 @@ public class Host {
 
 
     /**
-     * Parse the given input as an HTTP Host header value.
+     * Parse the given input as a HTTP Host header value.
      *
      * @param mb The host header value
      *
@@ -47,7 +47,7 @@ public class Host {
 
 
     /**
-     * Parse the given input as an HTTP Host header value.
+     * Parse the given input as a HTTP Host header value.
      *
      * @param string The host header value
      *
@@ -101,8 +101,7 @@ public class Host {
         @Override
         public int read(char[] cbuf, int off, int len) throws IOException {
             for (int i = off; i < off + len; i++) {
-                // Want output in range 0 to 255, not -128 to 127
-                cbuf[i] = (char) (bytes[pos++] & 0xFF);
+                cbuf[i] = (char) bytes[pos++];
             }
             return len;
         }
@@ -117,8 +116,7 @@ public class Host {
         @Override
         public int read() throws IOException {
             if (pos < end) {
-                // Want output in range 0 to 255, not -128 to 127
-                return bytes[pos++] & 0xFF;
+                return bytes[pos++];
             } else {
                 return -1;
             }

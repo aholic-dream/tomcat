@@ -93,13 +93,13 @@ source distribution, do the following:
 
 (3.1) Checkout or obtain the source code for Tomcat @VERSION_MAJOR_MINOR@
 
-Clone the source using git, then checkout a specific major branch or
-master for the latest code development, or download and unpack a source
+Checkout the source using SVN, selecting a tag for released version or
+trunk for the current development code, or download and unpack a source
 package.
 
- *  Tomcat GitHub repository URL:
+ *  Tomcat SVN repository URL:
 
-        https://github.com/apache/tomcat
+        https://svn.apache.org/repos/asf/tomcat/tc@VERSION_MAJOR_MINOR@.x/trunk/
 
  *  Source packages can be downloaded from:
 
@@ -184,7 +184,7 @@ each release package has the appropriate line-endings.
 (4) Updating sources and rebuilding
 
 It is recommended that you regularly update the downloaded Tomcat @VERSION_MAJOR_MINOR@
-sources using your git client.
+sources using your SVN client.
 
 For a quick rebuild of only modified code you can use:
 
@@ -523,7 +523,7 @@ target. The command is:
 NOTE: FindBugs is licensed under LGPL. Using Findbugs during Tomcat build is
       optional and is off by default.
 
-      See https://spotbugs.github.io/ for more information.
+      See http://findbugs.sourceforge.net/ for more information.
 
 To enable FindBugs, add the following property to build.properties file:
 
@@ -545,12 +545,15 @@ The report file by default is written to
 You usually would not need to run this check. You can skip this section.
 
 Apache Tomcat project has convention that all of its textual source files,
-stored in the Git repository, use Unix style LF line endings.
+stored in Subversion repository, are marked with Subversion property
+"svn:eol-style" with value of "native". This convention makes the editing
+of source code on different platforms easier.
 
 This test is used by developers to check that the source code adheres to
 this convention. It verifies that the ends of lines in textual files are
-appropriate. The idea is to run this check regularly and notify developers
-when an inconsistency is detected.
+appropriate for the operating system where it is run. The idea is to run
+this check regularly on two different platforms and notify developers when
+an inconsistency is detected.
 
 The command to run this test is:
 

@@ -214,7 +214,7 @@ public class StoreAppender {
             throws Exception {
 
         // Render a className attribute if requested
-        if (include && !desc.isStandard()) {
+        if (include && desc != null && !desc.isStandard()) {
             writer.print(" className=\"");
             writer.print(bean.getClass().getName());
             writer.print("\"");

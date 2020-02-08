@@ -204,8 +204,6 @@ public class PerMessageDeflate implements Transformation {
                         dest.array(), dest.arrayOffset() + dest.position(), dest.remaining());
             } catch (DataFormatException e) {
                 throw new IOException(sm.getString("perMessageDeflate.deflateFailed"), e);
-            } catch (NullPointerException e) {
-                throw new IOException(sm.getString("perMessageDeflate.alreadyClosed"), e);
             }
             dest.position(dest.position() + written);
 
@@ -231,11 +229,7 @@ public class PerMessageDeflate implements Transformation {
             } else if (written == 0) {
                 if (fin && (isServer && !clientContextTakeover ||
                         !isServer && !serverContextTakeover)) {
-                    try {
-                        inflater.reset();
-                    } catch (NullPointerException e) {
-                        throw new IOException(sm.getString("perMessageDeflate.alreadyClosed"), e);
-                    }
+                    inflater.reset();
                 }
                 return TransformationResult.END_OF_FRAME;
             }
@@ -320,7 +314,7 @@ public class PerMessageDeflate implements Transformation {
 
 
     @Override
-    public List<MessagePart> sendMessagePart(List<MessagePart> uncompressedParts) throws IOException {
+    public List<MessagePart> sendMessagePart(List<MessagePart> uncompressedParts) {
         List<MessagePart> allCompressedParts = new ArrayList<>();
 
         for (MessagePart uncompressedPart : uncompressedParts) {
@@ -351,14 +345,10 @@ public class PerMessageDeflate implements Transformation {
                 while (deflateRequired) {
                     ByteBuffer compressedPayload = writeBuffer;
 
-                    try {
-                        int written = deflater.deflate(compressedPayload.array(),
-                                compressedPayload.arrayOffset() + compressedPayload.position(),
-                                compressedPayload.remaining(), flush);
-                        compressedPayload.position(compressedPayload.position() + written);
-                    } catch (NullPointerException e) {
-                        throw new IOException(sm.getString("perMessageDeflate.alreadyClosed"), e);
-                    }
+                    int written = deflater.deflate(compressedPayload.array(),
+                            compressedPayload.arrayOffset() + compressedPayload.position(),
+                            compressedPayload.remaining(), flush);
+                    compressedPayload.position(compressedPayload.position() + written);
 
                     if (!uncompressedPart.isFin() && compressedPayload.hasRemaining() && deflater.needsInput()) {
                         // This message part has been fully processed by the
@@ -411,12 +401,7 @@ public class PerMessageDeflate implements Transformation {
                         // - in middle of EOM bytes
                         // - about to write EOM bytes
                         // - more data to write
-                        int eomBufferWritten;
-                        try {
-                            eomBufferWritten = deflater.deflate(EOM_BUFFER, 0, EOM_BUFFER.length, Deflater.SYNC_FLUSH);
-                        } catch (NullPointerException e) {
-                            throw new IOException(sm.getString("perMessageDeflate.alreadyClosed"), e);
-                        }
+                        int eomBufferWritten = deflater.deflate(EOM_BUFFER, 0, EOM_BUFFER.length, Deflater.SYNC_FLUSH);
                         if (eomBufferWritten < EOM_BUFFER.length) {
                             // EOM has just been completed
                             compressedPayload.limit(compressedPayload.limit() - EOM_BYTES.length + eomBufferWritten);
@@ -436,7 +421,7 @@ public class PerMessageDeflate implements Transformation {
                                     blockingWriteTimeoutExpiry);
                         }
                     } else {
-                        throw new IllegalStateException(sm.getString("perMessageDeflate.invalidState"));
+                        throw new IllegalStateException("Should never happen");
                     }
 
                     // Add the newly created compressed part to the set of parts
@@ -462,15 +447,11 @@ public class PerMessageDeflate implements Transformation {
     }
 
 
-    private void startNewMessage() throws IOException {
+    private void startNewMessage() {
         firstCompressedFrameWritten = false;
         emptyMessage = true;
         if (isServer && !serverContextTakeover || !isServer && !clientContextTakeover) {
-            try {
-                deflater.reset();
-            } catch (NullPointerException e) {
-                throw new IOException(sm.getString("perMessageDeflate.alreadyClosed"), e);
-            }
+            deflater.reset();
         }
     }
 

@@ -23,7 +23,6 @@ output
 work
 build.properties
 mvn.properties
-.ant-targets-build.xml
 .checkstyle
 .classpath
 .fbprefs
@@ -31,8 +30,6 @@ mvn.properties
 .settings
 .idea
 *.iml
-*.ipr
-*.iws
 *.asc
 *.jj
 *.tmp
@@ -44,3 +41,5 @@ java/org/apache/catalina/startup/catalina.properties
 modules/jdbc-pool/bin
 modules/jdbc-pool/includes
 webapps/docs/jdbc-pool.xml
+target
+.idea

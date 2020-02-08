@@ -118,7 +118,7 @@ public class JSSESupport implements SSLSupport, SSLSessionManager {
                             cf.generateCertificate(stream);
                 } catch(Exception ex) {
                     log.info(sm.getString(
-                            "jsseSupport.certTranslationError", certs[i]), ex);
+                            "jseeSupport.certTranslationError", certs[i]), ex);
                     return null;
                 }
             }

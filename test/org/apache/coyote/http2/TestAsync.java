@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletOutputStream;
@@ -58,6 +57,7 @@ public class TestAsync extends Http2TestBase {
             "connectionUnlimited[{1}], streamUnlimited[{2}], useNonContainerThreadForWrite[{3}]," +
             "largeInitialWindow[{4}]")
     public static Collection<Object[]> parameters() {
+        Boolean[] booleans = new Boolean[] { Boolean.FALSE, Boolean.TRUE };
         List<Object[]> parameterSets = new ArrayList<>();
 
         for (Boolean expandConnectionFirst : booleans) {
@@ -120,7 +120,7 @@ public class TestAsync extends Http2TestBase {
         sendClientPreface();
         validateHttp2InitialResponse();
 
-        // Reset connection window size after initial response
+        // Reset connection window size after intial response
         sendWindowUpdate(0, SimpleServlet.CONTENT_LENGTH);
 
         if (largeInitialWindow) {
@@ -153,6 +153,7 @@ public class TestAsync extends Http2TestBase {
         // Body
 
         if (!connectionUnlimited || !streamUnlimited) {
+
             while (output.getBytesRead() < startingWindowSize) {
                 parser.readFrame(true);
             }
@@ -188,14 +189,7 @@ public class TestAsync extends Http2TestBase {
         }
 
         while (!output.getTrace().endsWith("3-EndOfStream\n")) {
-            try {
-                parser.readFrame(true);
-            } catch (IOException ioe) {
-                // Attempt to debug intermittent test failures
-                System.out.println(output.getTrace());
-                System.out.println(output.getBytesRead());
-                throw ioe;
-            }
+            parser.readFrame(true);
         }
 
         // Check that the right number of bytes were received
@@ -232,10 +226,7 @@ public class TestAsync extends Http2TestBase {
             final ServletOutputStream output = response.getOutputStream();
             output.setWriteListener(new WriteListener() {
 
-                // Intermittent CI errors were observed where the response body
-                // was exactly one block too small. Use an AtomicInteger to be
-                // sure blockCount is thread-safe.
-                final AtomicInteger blockCount = new AtomicInteger(0);
+                int blockCount;
                 byte[] bytes = new byte[BLOCK_SIZE];
 
 
@@ -261,9 +252,9 @@ public class TestAsync extends Http2TestBase {
 
                 private void write() throws IOException {
                     while (output.isReady()) {
-                        blockCount.incrementAndGet();
+                        blockCount++;
                         output.write(bytes);
-                        if (blockCount.get()  == blockLimit) {
+                        if (blockCount == blockLimit) {
                             asyncContext.complete();
                             scheduler.shutdown();
                             return;

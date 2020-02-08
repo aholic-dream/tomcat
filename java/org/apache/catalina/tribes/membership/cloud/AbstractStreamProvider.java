@@ -17,53 +17,34 @@
 
 package org.apache.catalina.tribes.membership.cloud;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
+import org.apache.catalina.tribes.membership.Constants;
 import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 public abstract class AbstractStreamProvider implements StreamProvider {
     private static final Log log = LogFactory.getLog(AbstractStreamProvider.class);
-    protected static final StringManager sm = StringManager.getManager(AbstractStreamProvider.class);
+    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
     protected static final TrustManager[] INSECURE_TRUST_MANAGERS = new TrustManager[] {
             new X509TrustManager() {
-                @Override
                 public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                @Override
                 public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {}
-                @Override
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }
             }
         };
-
-    /**
-     * @return the socket factory, or null if not needed
-     */
-    protected abstract SSLSocketFactory getSocketFactory();
 
     /**
      * Open URL connection to the specified URL.
@@ -76,8 +57,7 @@ public abstract class AbstractStreamProvider implements StreamProvider {
      */
     public URLConnection openConnection(String url, Map<String, String> headers, int connectTimeout, int readTimeout) throws IOException {
         if (log.isDebugEnabled()) {
-            log.debug(String.format("%s opening connection: url [%s], headers [%s], connectTimeout [%s], readTimeout [%s]",
-                    getClass().getSimpleName(), url, headers, Integer.toString(connectTimeout), Integer.toString(readTimeout)));
+            log.debug(String.format("%s opening connection: url [%s], headers [%s], connectTimeout [%s], readTimeout [%s]", getClass().getSimpleName(), url, headers, connectTimeout, readTimeout));
         }
         URLConnection connection = new URL(url).openConnection();
         if (headers != null) {
@@ -87,61 +67,11 @@ public abstract class AbstractStreamProvider implements StreamProvider {
         }
         if (connectTimeout < 0 || readTimeout < 0) {
             throw new IllegalArgumentException(
-                String.format("Neither connectTimeout [%s] nor readTimeout [%s] can be less than 0 for URLConnection.",
-                        Integer.toString(connectTimeout), Integer.toString(readTimeout)));
+                String.format("Neither connectTimeout [%s] nor readTimeout [%s] can be less than 0 for URLConnection.", connectTimeout, readTimeout));
         }
         connection.setConnectTimeout(connectTimeout);
         connection.setReadTimeout(readTimeout);
         return connection;
     }
 
-    @Override
-    public InputStream openStream(String url, Map<String, String> headers,
-            int connectTimeout, int readTimeout) throws IOException {
-        URLConnection connection = openConnection(url, headers, connectTimeout, readTimeout);
-        if (connection instanceof HttpsURLConnection) {
-            ((HttpsURLConnection) connection).setSSLSocketFactory(getSocketFactory());
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Using HttpsURLConnection with SSLSocketFactory [%s] for url [%s].", getSocketFactory(), url));
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Using URLConnection for url [%s].", url));
-            }
-        }
-        return connection.getInputStream();
-    }
-
-    protected static TrustManager[] configureCaCert(String caCertFile) throws Exception {
-        if (caCertFile != null) {
-            try (InputStream pemInputStream = new BufferedInputStream(new FileInputStream(caCertFile))) {
-                CertificateFactory certFactory = CertificateFactory.getInstance("X509");
-
-                KeyStore trustStore = KeyStore.getInstance("JKS");
-                trustStore.load(null);
-
-                Collection<? extends Certificate> c = certFactory.generateCertificates(pemInputStream);
-                Iterator<? extends Certificate> i = c.iterator();
-                while (i.hasNext()) {
-                   X509Certificate cert = (X509Certificate)i.next();
-                   String alias = cert.getSubjectX500Principal().getName();
-                   trustStore.setCertificateEntry(alias, cert);
-                }
-
-                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustManagerFactory.init(trustStore);
-
-                return trustManagerFactory.getTrustManagers();
-            } catch (FileNotFoundException fnfe) {
-                log.error(sm.getString("abstractStream.fileNotFound", caCertFile));
-                throw fnfe;
-            } catch (Exception e) {
-                log.error(sm.getString("abstractStream.trustManagerError", caCertFile));
-                throw e;
-            }
-        } else {
-            log.warn(sm.getString("abstractStream.CACertUndefined"));
-            return InsecureStreamProvider.INSECURE_TRUST_MANAGERS;
-        }
-    }
 }

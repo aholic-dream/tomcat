@@ -99,7 +99,10 @@
         children="true"
         storeFactoryClass="org.apache.catalina.storeconfig.ConnectorSF"
         storeAppenderClass="org.apache.catalina.storeconfig.ConnectorStoreAppender">
-        <!-- All attribute duplicated from the SSLHostConfig, removed in Tomcat 10 -->
+        <TransientAttribute>URIEncoding</TransientAttribute>
+        <TransientAttribute>maxProcessor</TransientAttribute>
+        <TransientAttribute>minProcessor</TransientAttribute>
+        <!-- All attribute duplicated from the SSLHostConfig, may be removed in Tomcat 10 -->
         <TransientAttribute>SSLProtocol</TransientAttribute>
         <TransientAttribute>sslEnabledProtocols</TransientAttribute>
         <TransientAttribute>SSLCipherSuite</TransientAttribute>
@@ -135,13 +138,6 @@
         <TransientAttribute>truststorePass</TransientAttribute>
         <TransientAttribute>truststoreProvider</TransientAttribute>
         <TransientAttribute>truststoreType</TransientAttribute>
-        <!-- All attribute duplicated from the AbstractHttp11Protocol, removed in Tomcat 10 -->
-        <TransientAttribute>clientAuth</TransientAttribute>
-        <TransientAttribute>SSLVerifyClient</TransientAttribute>
-        <TransientAttribute>trustMaxCertLength</TransientAttribute>
-        <TransientAttribute>SSLVerifyDepth</TransientAttribute>
-        <TransientAttribute>useServerCipherSuitesOrder</TransientAttribute>
-        <TransientAttribute>SSLHonorCipherOrder</TransientAttribute>
      </Description>
      <Description
         tag="UpgradeProtocol"
@@ -287,10 +283,8 @@
        <TransientChild>org.apache.catalina.mbeans.ServerLifecycleListener</TransientChild>
        <TransientChild>org.apache.catalina.core.NamingContextListener</TransientChild>
        <TransientChild>org.apache.catalina.startup.ContextConfig</TransientChild>
-       <TransientChild>org.apache.catalina.startup.ContextConfig$HostWebXmlCacheCleaner</TransientChild>
        <TransientChild>org.apache.catalina.startup.EngineConfig</TransientChild>
        <TransientChild>org.apache.catalina.startup.HostConfig</TransientChild>
-       <TransientChild>org.apache.catalina.startup.ListenerCreateRule$OptionalListener</TransientChild>
        <TransientChild>org.apache.catalina.core.StandardHost$MemoryLeakTrackingListener</TransientChild>
        <TransientChild>org.apache.catalina.mapper.MapperListener</TransientChild>
        <TransientChild>org.apache.catalina.core.StandardEngine$AccessLogListener</TransientChild>

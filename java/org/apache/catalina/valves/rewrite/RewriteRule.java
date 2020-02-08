@@ -32,7 +32,6 @@ public class RewriteRule {
     protected String patternString = null;
     protected String substitutionString = null;
     protected String flagsString = null;
-    protected boolean positive = true;
 
     public void parse(Map<String, RewriteMap> maps) {
         // Parse the substitution
@@ -43,10 +42,6 @@ public class RewriteRule {
             substitution.setEscapeBackReferences(isEscapeBackReferences());
         }
         // Parse the pattern
-        if (patternString.startsWith("!")) {
-            positive = false;
-            patternString = patternString.substring(1);
-        }
         int flags = 0;
         if (isNocase()) {
             flags |= Pattern.CASE_INSENSITIVE;
@@ -97,8 +92,7 @@ public class RewriteRule {
             this.pattern.set(pattern);
         }
         Matcher matcher = pattern.matcher(url);
-        // Use XOR
-        if (positive ^ matcher.matches()) {
+        if (!matcher.matches()) {
             // Evaluation done
             return null;
         }
@@ -201,14 +195,14 @@ public class RewriteRule {
 
     /**
      *  This forces the current URL to be forbidden, i.e., it immediately sends
-     *  back an HTTP response of 403 (FORBIDDEN). Use this flag in conjunction
+     *  back a HTTP response of 403 (FORBIDDEN). Use this flag in conjunction
      *  with appropriate RewriteConds to conditionally block some URLs.
      */
     protected boolean forbidden = false;
 
     /**
      *  This forces the current URL to be gone, i.e., it immediately sends
-     *  back an HTTP response of 410 (GONE). Use this flag to mark pages which
+     *  back a HTTP response of 410 (GONE). Use this flag to mark pages which
      *  no longer exist as gone.
      */
     protected boolean gone = false;
@@ -299,7 +293,7 @@ public class RewriteRule {
 
     /**
      *  Prefix Substitution with http://thishost[:thisport]/ (which makes the
-     *  new URL a URI) to force an external redirection. If no code is given
+     *  new URL a URI) to force a external redirection. If no code is given
      *  an HTTP response of 302 (FOUND, previously MOVED TEMPORARILY) is used.
      *  If you want to  use other response codes in the range 300-399 just
      *  specify them as a number or use one of the following symbolic names:

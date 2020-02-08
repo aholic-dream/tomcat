@@ -56,22 +56,6 @@ import org.apache.tomcat.InstanceManager;
  */
 public class JspRuntimeLibrary {
 
-    public static final boolean GRAAL;
-
-    static {
-        boolean result = false;
-        try {
-            Class<?> nativeImageClazz = Class.forName("org.graalvm.nativeimage.ImageInfo");
-            result = nativeImageClazz.getMethod("inImageCode").invoke(null) != null;
-            // Note: This will also be true for the Graal substrate VM
-        } catch (ClassNotFoundException e) {
-            // Must be Graal
-        } catch (ReflectiveOperationException | IllegalArgumentException e) {
-            // Should never happen
-        }
-        GRAAL = result;
-    }
-
     /**
      * Returns the value of the javax.servlet.error.exception request
      * attribute value, if present, otherwise the value of the
@@ -227,54 +211,32 @@ public class JspRuntimeLibrary {
             if (propertyEditorClass != null) {
                 return getValueFromBeanInfoPropertyEditor(
                                     t, propertyName, s, propertyEditorClass);
-            } else if (t.equals(Boolean.class) || t.equals(Boolean.TYPE)) {
+            } else if ( t.equals(Boolean.class) || t.equals(Boolean.TYPE) ) {
+                if (s.equalsIgnoreCase("on") || s.equalsIgnoreCase("true"))
+                    s = "true";
+                else
+                    s = "false";
                 return Boolean.valueOf(s);
-            } else if (t.equals(Byte.class) || t.equals(Byte.TYPE)) {
-                if (s.length() == 0) {
-                    return Byte.valueOf((byte)0);
-                } else {
-                    return Byte.valueOf(s);
-                }
+            } else if ( t.equals(Byte.class) || t.equals(Byte.TYPE) ) {
+                return Byte.valueOf(s);
             } else if (t.equals(Character.class) || t.equals(Character.TYPE)) {
-                if (s.length() == 0) {
-                    return Character.valueOf((char) 0);
-                } else {
-                    return Character.valueOf(s.charAt(0));
-                }
-            } else if (t.equals(Double.class) || t.equals(Double.TYPE)) {
-                if (s.length() == 0) {
-                    return Double.valueOf(0);
-                } else {
-                    return Double.valueOf(s);
-                }
-            } else if (t.equals(Integer.class) || t.equals(Integer.TYPE)) {
-                if (s.length() == 0) {
-                    return Integer.valueOf(0);
-                } else {
-                    return Integer.valueOf(s);
-                }
-            } else if (t.equals(Float.class) || t.equals(Float.TYPE)) {
-                if (s.length() == 0) {
-                    return Float.valueOf(0);
-                } else {
-                    return Float.valueOf(s);
-                }
-            } else if (t.equals(Long.class) || t.equals(Long.TYPE)) {
-                if (s.length() == 0) {
-                    return Long.valueOf(0);
-                } else {
-                    return Long.valueOf(s);
-                }
-            } else if (t.equals(Short.class) || t.equals(Short.TYPE)) {
-                if (s.length() == 0) {
-                    return Short.valueOf((short) 0);
-                } else {
-                    return Short.valueOf(s);
-                }
+                return s.length() > 0 ? Character.valueOf(s.charAt(0)) : null;
+            } else if ( t.equals(Short.class) || t.equals(Short.TYPE) ) {
+                return Short.valueOf(s);
+            } else if ( t.equals(Integer.class) || t.equals(Integer.TYPE) ) {
+                return Integer.valueOf(s);
+            } else if ( t.equals(Float.class) || t.equals(Float.TYPE) ) {
+                return Float.valueOf(s);
+            } else if ( t.equals(Long.class) || t.equals(Long.TYPE) ) {
+                return Long.valueOf(s);
+            } else if ( t.equals(Double.class) || t.equals(Double.TYPE) ) {
+                return Double.valueOf(s);
             } else if ( t.equals(String.class) ) {
                 return s;
+            } else if ( t.equals(java.io.File.class) ) {
+                return new java.io.File(s);
             } else if (t.getName().equals("java.lang.Object")) {
-                return new String(s);
+                return new Object[] {s};
             } else {
                 return getValueFromPropertyEditorManager(
                                             t, propertyName, s);
@@ -307,24 +269,17 @@ public class JspRuntimeLibrary {
         Class<?> type = null;
         Class<?> propertyEditorClass = null;
         try {
-            if (GRAAL) {
-                method = getWriteMethod(bean.getClass(), prop);
-                if (method.getParameterTypes().length > 0) {
-                    type = method.getParameterTypes()[0];
-                }
-            } else {
-                java.beans.BeanInfo info
+            java.beans.BeanInfo info
                 = java.beans.Introspector.getBeanInfo(bean.getClass());
-                if ( info != null ) {
-                    java.beans.PropertyDescriptor pd[]
-                            = info.getPropertyDescriptors();
-                    for (int i = 0 ; i < pd.length ; i++) {
-                        if ( pd[i].getName().equals(prop) ) {
-                            method = pd[i].getWriteMethod();
-                            type   = pd[i].getPropertyType();
-                            propertyEditorClass = pd[i].getPropertyEditorClass();
-                            break;
-                        }
+            if ( info != null ) {
+                java.beans.PropertyDescriptor pd[]
+                    = info.getPropertyDescriptors();
+                for (int i = 0 ; i < pd.length ; i++) {
+                    if ( pd[i].getName().equals(prop) ) {
+                        method = pd[i].getWriteMethod();
+                        type   = pd[i].getPropertyType();
+                        propertyEditorClass = pd[i].getPropertyEditorClass();
+                        break;
                     }
                 }
             }
@@ -732,48 +687,24 @@ public class JspRuntimeLibrary {
         }
     }
 
-    /**
-     * Reverse of Introspector.decapitalize.
-     * @param name The name
-     * @return the capitalized string
-     */
-    public static String capitalize(String name) {
-        if (name == null || name.length() == 0) {
-            return name;
-        }
-        char chars[] = name.toCharArray();
-        chars[0] = Character.toUpperCase(chars[0]);
-        return new String(chars);
-    }
-
     public static Method getWriteMethod(Class<?> beanClass, String prop)
-            throws JasperException {
-        Method result = null;
+    throws JasperException {
+        Method method = null;
         Class<?> type = null;
-        if (GRAAL) {
-            String setter = "set" + capitalize(prop);
-            Method methods[] = beanClass.getMethods();
-            for (Method method : methods) {
-                if (setter.equals(method.getName())) {
-                    return method;
+        try {
+            java.beans.BeanInfo info = java.beans.Introspector.getBeanInfo(beanClass);
+            java.beans.PropertyDescriptor pd[] = info.getPropertyDescriptors();
+            for (int i = 0 ; i < pd.length ; i++) {
+                if ( pd[i].getName().equals(prop) ) {
+                    method = pd[i].getWriteMethod();
+                    type = pd[i].getPropertyType();
+                    break;
                 }
             }
-        } else {
-            try {
-                java.beans.BeanInfo info = java.beans.Introspector.getBeanInfo(beanClass);
-                java.beans.PropertyDescriptor pd[] = info.getPropertyDescriptors();
-                for (int i = 0 ; i < pd.length ; i++) {
-                    if ( pd[i].getName().equals(prop) ) {
-                        result = pd[i].getWriteMethod();
-                        type = pd[i].getPropertyType();
-                        break;
-                    }
-                }
-            } catch (Exception ex) {
-                throw new JasperException (ex);
-            }
+        } catch (Exception ex) {
+            throw new JasperException (ex);
         }
-        if (result == null) {
+        if (method == null) {
             if (type == null) {
                 throw new JasperException(Localizer.getMessage(
                         "jsp.error.beans.noproperty", prop, beanClass.getName()));
@@ -783,37 +714,28 @@ public class JspRuntimeLibrary {
                         prop, type.getName(), beanClass.getName()));
             }
         }
-        return result;
+        return method;
     }
 
     public static Method getReadMethod(Class<?> beanClass, String prop)
             throws JasperException {
-        Method result = null;
+
+        Method method = null;
         Class<?> type = null;
-        if (GRAAL) {
-            String setter = "get" + capitalize(prop);
-            Method methods[] = beanClass.getMethods();
-            for (Method method : methods) {
-                if (setter.equals(method.getName())) {
-                    return method;
+        try {
+            java.beans.BeanInfo info = java.beans.Introspector.getBeanInfo(beanClass);
+            java.beans.PropertyDescriptor pd[] = info.getPropertyDescriptors();
+            for (int i = 0 ; i < pd.length ; i++) {
+                if (pd[i].getName().equals(prop)) {
+                    method = pd[i].getReadMethod();
+                    type = pd[i].getPropertyType();
+                    break;
                 }
             }
-        } else {
-            try {
-                java.beans.BeanInfo info = java.beans.Introspector.getBeanInfo(beanClass);
-                java.beans.PropertyDescriptor pd[] = info.getPropertyDescriptors();
-                for (int i = 0 ; i < pd.length ; i++) {
-                    if (pd[i].getName().equals(prop)) {
-                        result = pd[i].getReadMethod();
-                        type = pd[i].getPropertyType();
-                        break;
-                    }
-                }
-            } catch (Exception ex) {
-                throw new JasperException (ex);
-            }
+        } catch (Exception ex) {
+            throw new JasperException (ex);
         }
-        if (result == null) {
+        if (method == null) {
             if (type == null) {
                 throw new JasperException(Localizer.getMessage(
                         "jsp.error.beans.noproperty", prop, beanClass.getName()));
@@ -822,7 +744,8 @@ public class JspRuntimeLibrary {
                         "jsp.error.beans.nomethod", prop, beanClass.getName()));
             }
         }
-        return result;
+
+        return method;
     }
 
     //*********************************************************************
@@ -838,14 +761,10 @@ public class JspRuntimeLibrary {
             pe.setAsText(attrValue);
             return pe.getValue();
         } catch (Exception ex) {
-            if (attrValue.length() == 0) {
-                return null;
-            } else {
-                throw new JasperException(
-                    Localizer.getMessage("jsp.error.beans.property.conversion",
-                                         attrValue, attrClass.getName(), attrName,
-                                         ex.getMessage()));
-            }
+            throw new JasperException(
+                Localizer.getMessage("jsp.error.beans.property.conversion",
+                                     attrValue, attrClass.getName(), attrName,
+                                     ex.getMessage()));
         }
     }
 
@@ -859,21 +778,15 @@ public class JspRuntimeLibrary {
             if (propEditor != null) {
                 propEditor.setAsText(attrValue);
                 return propEditor.getValue();
-            } else if (attrValue.length() == 0) {
-                return null;
             } else {
                 throw new IllegalArgumentException(
                     Localizer.getMessage("jsp.error.beans.propertyeditor.notregistered"));
             }
         } catch (IllegalArgumentException ex) {
-            if (attrValue.length() == 0) {
-                return null;
-            } else {
-                throw new JasperException(
-                    Localizer.getMessage("jsp.error.beans.property.conversion",
-                                         attrValue, attrClass.getName(), attrName,
-                                         ex.getMessage()));
-            }
+            throw new JasperException(
+                Localizer.getMessage("jsp.error.beans.property.conversion",
+                                     attrValue, attrClass.getName(), attrName,
+                                     ex.getMessage()));
         }
     }
 
@@ -1055,7 +968,8 @@ public class JspRuntimeLibrary {
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
             Log log = LogFactory.getLog(JspRuntimeLibrary.class);
-            log.warn(Localizer.getMessage("jsp.warning.tagRelease", tag.getClass().getName()), t);
+            log.warn("Error processing release on tag instance of "
+                    + tag.getClass().getName(), t);
         }
         try {
             instanceManager.destroyInstance(tag);
@@ -1063,7 +977,8 @@ public class JspRuntimeLibrary {
             Throwable t = ExceptionUtils.unwrapInvocationTargetException(e);
             ExceptionUtils.handleThrowable(t);
             Log log = LogFactory.getLog(JspRuntimeLibrary.class);
-            log.warn(Localizer.getMessage("jsp.warning.tagPreDestroy", tag.getClass().getName()), t);
+            log.warn("Error processing preDestroy on tag instance of "
+                    + tag.getClass().getName(), t);
         }
 
     }

@@ -23,16 +23,12 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.Timestamp;
 
-import org.apache.tomcat.util.res.StringManager;
-
 /**
  * Move server.xml or context.xml as backup
  *
  * TODO Get Encoding from Registry
  */
 public class StoreFileMover {
-
-    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
     private String filename = "conf/server.xml";
 
@@ -145,7 +141,7 @@ public class StoreFileMover {
         }
         if (!configNew.getParentFile().exists()) {
             if (!configNew.getParentFile().mkdirs()) {
-                throw new IllegalStateException(sm.getString("storeFileMover.directoryCreationError", configNew));
+                throw new IllegalStateException("Cannot create directory " + configNew);
             }
         }
         String sb = getTimeTag();
@@ -164,18 +160,21 @@ public class StoreFileMover {
         if (configOld.renameTo(configSave)) {
             if (!configNew.renameTo(configOld)) {
                 configSave.renameTo(configOld);
-                throw new IOException(sm.getString("storeFileMover.renameError",
-                        configNew.getAbsolutePath(), configOld.getAbsolutePath()));
+                throw new IOException("Cannot rename "
+                        + configNew.getAbsolutePath() + " to "
+                        + configOld.getAbsolutePath());
             }
         } else {
             if (!configOld.exists()) {
                 if (!configNew.renameTo(configOld)) {
-                    throw new IOException(sm.getString("storeFileMover.renameError",
-                            configNew.getAbsolutePath(), configOld.getAbsolutePath()));
+                    throw new IOException("Cannot move "
+                            + configNew.getAbsolutePath() + " to "
+                            + configOld.getAbsolutePath());
                 }
             } else {
-                throw new IOException(sm.getString("storeFileMover.renameError",
-                        configOld.getAbsolutePath(), configSave.getAbsolutePath()));
+                throw new IOException("Cannot rename "
+                    + configOld.getAbsolutePath() + " to "
+                    + configSave.getAbsolutePath());
             }
         }
     }

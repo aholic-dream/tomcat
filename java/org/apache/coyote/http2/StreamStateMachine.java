@@ -53,12 +53,6 @@ class StreamStateMachine {
     }
 
 
-    final synchronized void sentHeaders() {
-        // No change if currently OPEN
-        stateChange(State.RESERVED_LOCAL, State.HALF_CLOSED_REMOTE);
-    }
-
-
     final synchronized void receivedStartOfHeaders() {
         stateChange(State.IDLE, State.OPEN);
         stateChange(State.RESERVED_REMOTE, State.HALF_CLOSED_LOCAL);
@@ -126,7 +120,7 @@ class StreamStateMachine {
             } else {
                 throw new StreamException(sm.getString("streamStateMachine.invalidFrame",
                         stream.getConnectionId(), stream.getIdentifier(), state, frameType),
-                        state.errorCodeForInvalidFrame, stream.getIdAsInt());
+                        state.errorCodeForInvalidFrame, stream.getIdentifier().intValue());
             }
         }
     }
@@ -176,7 +170,7 @@ class StreamStateMachine {
                             Http2Error.PROTOCOL_ERROR, FrameType.PRIORITY,
                                                        FrameType.RST,
                                                        FrameType.WINDOW_UPDATE),
-        RESERVED_REMOTE    (false,  true, true,  true,
+        RESERVED_REMOTE    (false, false, true,  true,
                             Http2Error.PROTOCOL_ERROR, FrameType.HEADERS,
                                                        FrameType.PRIORITY,
                                                        FrameType.RST),

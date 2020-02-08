@@ -90,7 +90,7 @@ public class JAASCallbackHandler implements CallbackHandler {
         this.realm = realm;
         this.username = username;
 
-        if (password != null && realm.hasMessageDigest()) {
+        if (realm.hasMessageDigest()) {
             this.password = realm.getCredentialHandler().mutate(password);
         }
         else {

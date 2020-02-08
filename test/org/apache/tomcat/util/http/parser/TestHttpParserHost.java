@@ -268,7 +268,7 @@ public class TestHttpParserHost {
     }
 
 
-    private enum TestType {
+    private static enum TestType {
         IPv4,
         IPv6
     }

@@ -94,10 +94,6 @@
                description="Should Tomcat attempt to terminate TimerThreads that have been started by the web application? Advisable to be used only in a development environment."
                type="boolean"/>
 
-    <attribute name="clearReferencesThreadLocals"
-               description="Should Tomcat attempt to clear ThreadLocal variables that have been populated with classes loaded by the web application?"
-               type="boolean"/>
-
     <attribute name="configFile"
                description="Location of the context.xml resource or file"
                type="java.net.URL"/>
@@ -1309,17 +1305,8 @@
                type="java.lang.Object"/>
 
     <attribute name="port"
-               description="TCP port (excluding any offset) for shutdown messages"
+               description="TCP port for shutdown messages"
                type="int"/>
-
-    <attribute name="portOffset"
-               description="The offset applied to port and to the port attributes of any nested connectors"
-               type="int"/>
-
-    <attribute name="portWithOffset"
-               description="Actual TCP port (including any offset) for shutdown messages"
-               type="int"
-               writeable="false"/>
 
     <attribute name="serverInfo"
                description="Tomcat server release identifier"

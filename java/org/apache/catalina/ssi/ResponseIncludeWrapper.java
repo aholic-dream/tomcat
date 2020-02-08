@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
 import org.apache.tomcat.util.http.FastHttpDateFormat;
 
 /**
- * An HttpServletResponseWrapper, used from
+ * A HttpServletResponseWrapper, used from
  * <code>SSIServletExternalResolver</code>
  *
  * @author Bip Thelin
@@ -81,7 +81,7 @@ public class ResponseIncludeWrapper extends HttpServletResponseWrapper {
 
 
     /**
-     * Return a printwriter, throws and exception if an OutputStream already
+     * Return a printwriter, throws and exception if a OutputStream already
      * been returned.
      *
      * @return a PrintWriter object
@@ -104,10 +104,10 @@ public class ResponseIncludeWrapper extends HttpServletResponseWrapper {
 
 
     /**
-     * Return an OutputStream, throws and exception if a printwriter already
+     * Return a OutputStream, throws and exception if a printwriter already
      * been returned.
      *
-     * @return an OutputStream object
+     * @return a OutputStream object
      * @exception java.io.IOException
      *                if the printwriter already been called
      */

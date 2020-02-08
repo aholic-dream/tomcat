@@ -177,19 +177,17 @@ public class SmapUtil {
             SDEInstaller installer = new SDEInstaller(classFile, smap);
             installer.install(tmpFile);
             if (!classFile.delete()) {
-                throw new IOException(Localizer.getMessage("jsp.error.unable.deleteClassFile",
-                        classFile.getAbsolutePath()));
+                throw new IOException("classFile.delete() failed");
             }
             if (!tmpFile.renameTo(classFile)) {
-                throw new IOException(Localizer.getMessage("jsp.error.unable.renameClassFile",
-                        tmpFile.getAbsolutePath(), classFile.getAbsolutePath()));
+                throw new IOException("tmpFile.renameTo(classFile) failed");
             }
         }
 
         SDEInstaller(File inClassFile, byte[] sdeAttr)
             throws IOException {
             if (!inClassFile.exists()) {
-                throw new FileNotFoundException(Localizer.getMessage("jsp.error.noFile", inClassFile));
+                throw new FileNotFoundException("no such file: " + inClassFile);
             }
 
             this.sdeAttr = sdeAttr;
@@ -213,8 +211,7 @@ public class SmapUtil {
             byte[] bytes = new byte[len];
             try (FileInputStream inStream = new FileInputStream(input)) {
                 if (inStream.read(bytes, 0, len) != len) {
-                    throw new IOException(Localizer.getMessage(
-                            "jsp.error.readContent", Integer.valueOf(len)));
+                    throw new IOException("expected size: " + len);
                 }
             }
             return bytes;
@@ -419,8 +416,7 @@ public class SmapUtil {
                         writeBytes(utf8);
                         break;
                     default :
-                        throw new IOException(Localizer.getMessage(
-                                "jsp.error.unexpectedTag", Integer.valueOf(tag)));
+                        throw new IOException("unexpected tag: " + tag);
                 }
             }
             return sdeIndex;

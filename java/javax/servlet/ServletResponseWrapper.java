@@ -19,7 +19,6 @@ package javax.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Locale;
-import java.util.ResourceBundle;
 
 /**
  * Provides a convenient implementation of the ServletResponse interface that
@@ -31,10 +30,6 @@ import java.util.ResourceBundle;
  * @see javax.servlet.ServletResponse
  */
 public class ServletResponseWrapper implements ServletResponse {
-    private static final String LSTRING_FILE = "javax.servlet.LocalStrings";
-    private static final ResourceBundle lStrings =
-        ResourceBundle.getBundle(LSTRING_FILE);
-
     private ServletResponse response;
 
     /**
@@ -47,7 +42,7 @@ public class ServletResponseWrapper implements ServletResponse {
      */
     public ServletResponseWrapper(ServletResponse response) {
         if (response == null) {
-            throw new IllegalArgumentException(lStrings.getString("wrapper.nullResponse"));
+            throw new IllegalArgumentException("Response cannot be null");
         }
         this.response = response;
     }
@@ -71,7 +66,7 @@ public class ServletResponseWrapper implements ServletResponse {
      */
     public void setResponse(ServletResponse response) {
         if (response == null) {
-            throw new IllegalArgumentException(lStrings.getString("wrapper.nullResponse"));
+            throw new IllegalArgumentException("Response cannot be null");
         }
         this.response = response;
     }

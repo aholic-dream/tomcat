@@ -47,6 +47,8 @@ public class TestHttp2Section_8_1 extends Http2TestBase {
     private void doTestPostWithTrailerHeaders(boolean allowTrailerHeader) throws Exception{
         http2Connect();
         if (allowTrailerHeader) {
+            Http2Protocol http2Protocol =
+                    (Http2Protocol) getTomcatInstance().getConnector().findUpgradeProtocols()[0];
             http2Protocol.setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
         }
 
@@ -83,7 +85,6 @@ public class TestHttp2Section_8_1 extends Http2TestBase {
                 "3-WindowSize-[256]\n" +
                 "3-HeadersStart\n" +
                 "3-Header-[:status]-[200]\n" +
-                "3-Header-[content-length]-[" + len + "]\n" +
                 "3-Header-[date]-["+ DEFAULT_DATE + "]\n" +
                 "3-HeadersEnd\n" +
                 "3-Body-" +
@@ -129,7 +130,6 @@ public class TestHttp2Section_8_1 extends Http2TestBase {
                 "3-WindowSize-[256]\n" +
                 "3-HeadersStart\n" +
                 "3-Header-[:status]-[200]\n" +
-                "3-Header-[content-length]-[256]\n" +
                 "3-Header-[date]-["+ DEFAULT_DATE + "]\n" +
                 "3-HeadersEnd\n" +
                 "3-Body-256\n" +

@@ -174,31 +174,19 @@ public class StatusTransformer {
 
                 writer.print("<p>");
                 writer.print( args[0] );
-                writer.print(' ');
                 writer.print(formatSize(Long.valueOf(result[0]), true));
-                writer.print(' ');
-                writer.print(args[1]);
-                writer.print(' ');
+                writer.print(" " + args[1]);
                 writer.print(formatSize(Long.valueOf(result[1]), true));
-                writer.print(' ');
-                writer.print(args[2]);
-                writer.print(' ');
+                writer.print(" " + args[2]);
                 writer.print(formatSize(Long.valueOf(result[2]), true));
-                writer.print(' ');
-                writer.print(args[3]);
-                writer.print(' ');
+                writer.print(" " + args[3]);
                 writer.print(formatSize(Long.valueOf(result[3]), true));
-                writer.print(' ');
-                writer.print(args[4]);
-                writer.print(' ');
+                writer.print(" " + args[4]);
                 writer.print(Long.valueOf(result[6]));
                 writer.print("<br>");
-                writer.print(args[5]);
-                writer.print(' ');
+                writer.print(" " + args[5]);
                 writer.print(formatTime(Long.valueOf(result[11] / 1000), true));
-                writer.print(' ');
-                writer.print(args[6]);
-                writer.print(' ');
+                writer.print(" " + args[6]);
                 writer.print(formatTime(Long.valueOf(result[12] / 1000), true));
                 writer.print("</p>");
             } else if (mode == 1){
@@ -231,17 +219,12 @@ public class StatusTransformer {
 
             writer.print("<p>");
             writer.print( args[0] );
-            writer.print(' ');
             writer.print(formatSize(
                     Long.valueOf(Runtime.getRuntime().freeMemory()), true));
-            writer.print(' ');
-            writer.print(args[1]);
-            writer.print(' ');
+            writer.print(" " + args[1] );
             writer.print(formatSize(
                     Long.valueOf(Runtime.getRuntime().totalMemory()), true));
-            writer.print(' ');
-            writer.print(args[2]);
-            writer.print(' ');
+            writer.print(" " + args[2] );
             writer.print(formatSize(
                     Long.valueOf(Runtime.getRuntime().maxMemory()), true));
             writer.print("</p>");
@@ -318,20 +301,18 @@ public class StatusTransformer {
 
             writer.print("<p>");
             writer.print( args[0] );
-            writer.print(' ');
             writer.print(mBeanServer.getAttribute(tpName, "maxThreads"));
-            writer.print(' ');
-            writer.print(args[1]);
-            writer.print(' ');
+            writer.print(" " + args[1]);
             writer.print(mBeanServer.getAttribute(tpName, "currentThreadCount"));
-            writer.print(' ');
-            writer.print(args[2]);
-            writer.print(' ');
+            writer.print(" " + args[2]);
             writer.print(mBeanServer.getAttribute(tpName, "currentThreadsBusy"));
-            writer.print(' ');
-            writer.print(args[3]);
-            writer.print(' ');
-            writer.print(mBeanServer.getAttribute(tpName, "keepAliveCount"));
+            try {
+                Object value = mBeanServer.getAttribute(tpName, "keepAliveCount");
+                writer.print(" " + args[3]);
+                writer.print(value);
+            } catch (Exception e) {
+                // Ignore
+            }
 
             writer.print("<br>");
 
@@ -351,30 +332,19 @@ public class StatusTransformer {
             }
 
             writer.print( args[4] );
-            writer.print(' ');
             writer.print(formatTime(mBeanServer.getAttribute
                                     (grpName, "maxTime"), false));
-            writer.print(' ');
-            writer.print(args[5]);
-            writer.print(' ');
+            writer.print(" " + args[5]);
             writer.print(formatTime(mBeanServer.getAttribute
                                     (grpName, "processingTime"), true));
-            writer.print(' ');
-            writer.print(args[6]);
-            writer.print(' ');
+            writer.print(" " + args[6]);
             writer.print(mBeanServer.getAttribute(grpName, "requestCount"));
-            writer.print(' ');
-            writer.print(args[7]);
-            writer.print(' ');
+            writer.print(" " + args[7]);
             writer.print(mBeanServer.getAttribute(grpName, "errorCount"));
-            writer.print(' ');
-            writer.print(args[8]);
-            writer.print(' ');
+            writer.print(" " + args[8]);
             writer.print(formatSize(mBeanServer.getAttribute
                                     (grpName, "bytesReceived"), true));
-            writer.print(' ');
-            writer.print(args[9]);
-            writer.print(' ');
+            writer.print(" " + args[9]);
             writer.print(formatSize(mBeanServer.getAttribute
                                     (grpName, "bytesSent"), true));
             writer.print("</p>");
@@ -548,7 +518,7 @@ public class StatusTransformer {
                 if (showRequest) {
                     writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
                                         (pName, "method")));
-                    writer.write(' ');
+                    writer.write(" ");
                     writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
                                         (pName, "currentUri")));
                     String queryString = (String) mBeanServer.getAttribute
@@ -557,7 +527,7 @@ public class StatusTransformer {
                         writer.write("?");
                         writer.print(Escape.htmlElementContent(queryString));
                     }
-                    writer.write(' ');
+                    writer.write(" ");
                     writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
                                         (pName, "protocol")));
                 } else {

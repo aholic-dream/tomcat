@@ -49,9 +49,10 @@ import org.apache.tomcat.jni.SSLContext;
 import org.apache.tomcat.util.net.AbstractEndpoint;
 import org.apache.tomcat.util.net.Constants;
 import org.apache.tomcat.util.net.SSLHostConfig;
-import org.apache.tomcat.util.net.SSLHostConfig.CertificateVerification;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate.Type;
+import org.apache.tomcat.util.net.jsse.JSSEKeyManager;
+import org.apache.tomcat.util.net.openssl.ciphers.OpenSSLCipherConfigurationParser;
 import org.apache.tomcat.util.res.StringManager;
 
 public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
@@ -67,9 +68,16 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
     private final SSLHostConfig sslHostConfig;
     private final SSLHostConfigCertificate certificate;
     private OpenSSLSessionContext sessionContext;
+    private X509KeyManager x509KeyManager;
     private X509TrustManager x509TrustManager;
 
     private final List<String> negotiableProtocols;
+
+    private List<String> jsseCipherNames = new ArrayList<>();
+
+    public List<String> getJsseCipherNames() {
+        return jsseCipherNames;
+    }
 
     private String enabledProtocol;
 
@@ -91,9 +99,9 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
 
     static final CertificateFactory X509_CERT_FACTORY;
 
-    private static final String BEGIN_KEY = "-----BEGIN PRIVATE KEY-----\n";
+    private static final String BEGIN_KEY = "-----BEGIN RSA PRIVATE KEY-----\n";
 
-    private static final Object END_KEY = "\n-----END PRIVATE KEY-----";
+    private static final Object END_KEY = "\n-----END RSA PRIVATE KEY-----";
     private boolean initialized = false;
 
     static {
@@ -145,13 +153,12 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
                     value |= SSL.SSL_PROTOCOL_TLSV1_1;
                 } else if (Constants.SSL_PROTO_TLSv1_2.equalsIgnoreCase(protocol)) {
                     value |= SSL.SSL_PROTOCOL_TLSV1_2;
-                } else if (Constants.SSL_PROTO_TLSv1_3.equalsIgnoreCase(protocol)) {
-                    value |= SSL.SSL_PROTOCOL_TLSV1_3;
                 } else if (Constants.SSL_PROTO_ALL.equalsIgnoreCase(protocol)) {
                     value |= SSL.SSL_PROTOCOL_ALL;
                 } else {
-                    // Should not happen since filtering to build
-                    // enabled protocols removes invalid values.
+                    // Protocol not recognized, fail to start as it is safer than
+                    // continuing with the default which might enable more than the
+                    // is required
                     throw new Exception(netSm.getString(
                             "endpoint.apr.invalidSslProtocol", protocol));
                 }
@@ -240,15 +247,66 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
                 SSLContext.clearOptions(ctx, SSL.SSL_OP_NO_TICKET);
             }
 
-            // List the ciphers that the client is permitted to negotiate
-            SSLContext.setCipherSuite(ctx, sslHostConfig.getCiphers());
-
-            if (certificate.getCertificateFile() == null) {
-                certificate.setCertificateKeyManager(OpenSSLUtil.chooseKeyManager(kms));
+            // Set session cache size, if specified
+            if (sslHostConfig.getSessionCacheSize() > 0) {
+                SSLContext.setSessionCacheSize(ctx, sslHostConfig.getSessionCacheSize());
+            } else {
+                // Get the default session cache size using SSLContext.setSessionCacheSize()
+                long sessionCacheSize = SSLContext.setSessionCacheSize(ctx, 20480);
+                // Revert the session cache size to the default value.
+                SSLContext.setSessionCacheSize(ctx, sessionCacheSize);
             }
 
-            addCertificate(certificate);
+            // Set session timeout, if specified
+            if (sslHostConfig.getSessionTimeout() > 0) {
+                SSLContext.setSessionCacheTimeout(ctx, sslHostConfig.getSessionTimeout());
+            } else {
+                // Get the default session timeout using SSLContext.setSessionCacheTimeout()
+                long sessionTimeout = SSLContext.setSessionCacheTimeout(ctx, 300);
+                // Revert the session timeout to the default value.
+                SSLContext.setSessionCacheTimeout(ctx, sessionTimeout);
+            }
 
+            // List the ciphers that the client is permitted to negotiate
+            String opensslCipherConfig = sslHostConfig.getCiphers();
+            this.jsseCipherNames = OpenSSLCipherConfigurationParser.parseExpression(opensslCipherConfig);
+            SSLContext.setCipherSuite(ctx, opensslCipherConfig);
+            // Load Server key and certificate
+            if (certificate.getCertificateFile() != null) {
+                // Set certificate
+                SSLContext.setCertificate(ctx,
+                        SSLHostConfig.adjustRelativePath(certificate.getCertificateFile()),
+                        SSLHostConfig.adjustRelativePath(certificate.getCertificateKeyFile()),
+                        certificate.getCertificateKeyPassword(), SSL.SSL_AIDX_RSA);
+                // Set certificate chain file
+                SSLContext.setCertificateChainFile(ctx,
+                        SSLHostConfig.adjustRelativePath(certificate.getCertificateChainFile()), false);
+                // Set revocation
+                SSLContext.setCARevocation(ctx,
+                        SSLHostConfig.adjustRelativePath(
+                                sslHostConfig.getCertificateRevocationListFile()),
+                        SSLHostConfig.adjustRelativePath(
+                                sslHostConfig.getCertificateRevocationListPath()));
+            } else {
+                x509KeyManager = chooseKeyManager(kms);
+                String alias = certificate.getCertificateKeyAlias();
+                if (alias == null) {
+                    alias = "tomcat";
+                }
+                X509Certificate[] chain = x509KeyManager.getCertificateChain(alias);
+                if (chain == null) {
+                    alias = findAlias(x509KeyManager, certificate);
+                    chain = x509KeyManager.getCertificateChain(alias);
+                }
+                PrivateKey key = x509KeyManager.getPrivateKey(alias);
+                StringBuilder sb = new StringBuilder(BEGIN_KEY);
+                sb.append(Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(key.getEncoded()));
+                sb.append(END_KEY);
+                SSLContext.setCertificateRaw(ctx, chain[0].getEncoded(), sb.toString().getBytes(StandardCharsets.US_ASCII), SSL.SSL_AIDX_RSA);
+                for (int i = 1; i < chain.length; i++) {
+                    SSLContext.addChainCertificateRaw(ctx, chain[i].getEncoded());
+                }
+            }
             // Client certificate verification
             int value = 0;
             switch (sslHostConfig.getCertificateVerification()) {
@@ -372,66 +430,6 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
         }
     }
 
-
-    public void addCertificate(SSLHostConfigCertificate certificate) throws Exception {
-        // Load Server key and certificate
-        if (certificate.getCertificateFile() != null) {
-            // Set certificate
-            SSLContext.setCertificate(ctx,
-                    SSLHostConfig.adjustRelativePath(certificate.getCertificateFile()),
-                    SSLHostConfig.adjustRelativePath(certificate.getCertificateKeyFile()),
-                    certificate.getCertificateKeyPassword(), getCertificateIndex(certificate));
-            // Set certificate chain file
-            SSLContext.setCertificateChainFile(ctx,
-                    SSLHostConfig.adjustRelativePath(certificate.getCertificateChainFile()), false);
-            // Set revocation
-            SSLContext.setCARevocation(ctx,
-                    SSLHostConfig.adjustRelativePath(
-                            sslHostConfig.getCertificateRevocationListFile()),
-                    SSLHostConfig.adjustRelativePath(
-                            sslHostConfig.getCertificateRevocationListPath()));
-        } else {
-            String alias = certificate.getCertificateKeyAlias();
-            X509KeyManager x509KeyManager = certificate.getCertificateKeyManager();
-            if (alias == null) {
-                alias = "tomcat";
-            }
-            X509Certificate[] chain = x509KeyManager.getCertificateChain(alias);
-            if (chain == null) {
-                alias = findAlias(x509KeyManager, certificate);
-                chain = x509KeyManager.getCertificateChain(alias);
-            }
-            PrivateKey key = x509KeyManager.getPrivateKey(alias);
-            StringBuilder sb = new StringBuilder(BEGIN_KEY);
-            sb.append(Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(key.getEncoded()));
-            sb.append(END_KEY);
-            SSLContext.setCertificateRaw(ctx, chain[0].getEncoded(),
-                    sb.toString().getBytes(StandardCharsets.US_ASCII),
-                    getCertificateIndex(certificate));
-            for (int i = 1; i < chain.length; i++) {
-                SSLContext.addChainCertificateRaw(ctx, chain[i].getEncoded());
-            }
-        }
-    }
-
-
-    private static int getCertificateIndex(SSLHostConfigCertificate certificate) {
-        int result;
-        // If the type is undefined there will only be one certificate (enforced
-        // in SSLHostConfig) so use the RSA slot.
-        if (certificate.getType() == Type.RSA || certificate.getType() == Type.UNDEFINED) {
-            result = SSL.SSL_AIDX_RSA;
-        } else if (certificate.getType() == Type.EC) {
-            result = SSL.SSL_AIDX_ECC;
-        } else if (certificate.getType() == Type.DSA) {
-            result = SSL.SSL_AIDX_DSA;
-        } else {
-            result = SSL.SSL_AIDX_MAX;
-        }
-        return result;
-    }
-
-
     /*
      * Find a valid alias when none was specified in the config.
      */
@@ -457,6 +455,20 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
         }
 
         return result;
+    }
+
+    private static X509KeyManager chooseKeyManager(KeyManager[] managers) throws Exception {
+        for (KeyManager manager : managers) {
+            if (manager instanceof JSSEKeyManager) {
+                return (JSSEKeyManager) manager;
+            }
+        }
+        for (KeyManager manager : managers) {
+            if (manager instanceof X509KeyManager) {
+                return (X509KeyManager) manager;
+            }
+        }
+        throw new IllegalStateException(sm.getString("openssl.keyManagerMissing"));
     }
 
     private static X509TrustManager chooseTrustManager(TrustManager[] managers) {
@@ -490,9 +502,7 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
     @Override
     public SSLEngine createSSLEngine() {
         return new OpenSSLEngine(ctx, defaultProtocol, false, sessionContext,
-                (negotiableProtocols != null && negotiableProtocols.size() > 0), initialized,
-                sslHostConfig.getCertificateVerificationDepth(),
-                sslHostConfig.getCertificateVerification() == CertificateVerification.OPTIONAL_NO_CA);
+                (negotiableProtocols != null && negotiableProtocols.size() > 0), initialized);
     }
 
     @Override
@@ -508,7 +518,6 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
     @Override
     public X509Certificate[] getCertificateChain(String alias) {
         X509Certificate[] chain = null;
-        X509KeyManager x509KeyManager = certificate.getCertificateKeyManager();
         if (x509KeyManager != null) {
             if (alias == null) {
                 alias = "tomcat";

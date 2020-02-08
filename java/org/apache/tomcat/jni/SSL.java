@@ -73,18 +73,7 @@ public final class SSL {
     public static final int SSL_PROTOCOL_TLSV1 = (1<<2);
     public static final int SSL_PROTOCOL_TLSV1_1 = (1<<3);
     public static final int SSL_PROTOCOL_TLSV1_2 = (1<<4);
-    public static final int SSL_PROTOCOL_TLSV1_3 = (1<<5);
-    public static final int SSL_PROTOCOL_ALL;
-
-    static {
-        if (SSL.version() >= 0x1010100f) {
-            SSL_PROTOCOL_ALL = (SSL_PROTOCOL_TLSV1 | SSL_PROTOCOL_TLSV1_1 | SSL_PROTOCOL_TLSV1_2 |
-                    SSL_PROTOCOL_TLSV1_3);
-        } else {
-            SSL_PROTOCOL_ALL = (SSL_PROTOCOL_TLSV1 | SSL_PROTOCOL_TLSV1_1 | SSL_PROTOCOL_TLSV1_2);
-        }
-    }
-
+    public static final int SSL_PROTOCOL_ALL   = (SSL_PROTOCOL_TLSV1 | SSL_PROTOCOL_TLSV1_1 | SSL_PROTOCOL_TLSV1_2);
 
     /*
      * Define the SSL verify levels
@@ -140,7 +129,7 @@ public final class SSL {
     /* Set on servers to choose the cipher according to the server's
      * preferences */
     public static final int SSL_OP_CIPHER_SERVER_PREFERENCE         = 0x00400000;
-    /* If set, a server will allow a client to issue an SSLv3.0 version number
+    /* If set, a server will allow a client to issue a SSLv3.0 version number
      * as latest version supported in the premaster secret, even when TLSv1.0
      * (version 3.1) was announced in the client hello. Normally this is
      * forbidden to prevent version rollback attacks. */
@@ -566,27 +555,6 @@ public final class SSL {
     public static native int renegotiate(long ssl);
 
     /**
-     * SSL_renegotiate_pending
-     * @param ssl the SSL instance (SSL *)
-     * @return the operation status
-     */
-    public static native int renegotiatePending(long ssl);
-
-    /**
-     * SSL_verify_client_post_handshake
-     * @param ssl the SSL instance (SSL *)
-     * @return the operation status
-     */
-    public static native int verifyClientPostHandshake(long ssl);
-
-    /**
-     * Is post handshake authentication in progress on this connection?
-     * @param ssl the SSL instance (SSL *)
-     * @return the operation status
-     */
-    public static native int getPostHandshakeAuthInProgress(long ssl);
-
-    /**
      * SSL_in_init.
      * @param ssl the SSL instance (SSL *)
      * @return the status
@@ -647,7 +615,7 @@ public final class SSL {
      * Authentication. Notice that this directive can be used both in per-server
      * and per-directory context. In per-server context it applies to the client
      * authentication process used in the standard SSL handshake when a connection
-     * is established. In per-directory context it forces an SSL renegotiation with
+     * is established. In per-directory context it forces a SSL renegotiation with
      * the reconfigured client verification level after the HTTP request was read
      * but before the HTTP response is sent.
      * <br>
@@ -704,7 +672,7 @@ public final class SSL {
      * is permitted to negotiate in the SSL handshake phase. Notice that this
      * directive can be used both in per-server and per-directory context.
      * In per-server context it applies to the standard SSL handshake when a
-     * connection is established. In per-directory context it forces an SSL
+     * connection is established. In per-directory context it forces a SSL
      * renegotiation with the reconfigured Cipher Suite after the HTTP request
      * was read but before the HTTP response is sent.
      * @param ssl the SSL instance (SSL *)

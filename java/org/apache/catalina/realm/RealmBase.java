@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.realm;
 
+
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.IOException;
@@ -147,6 +148,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
 
     // ------------------------------------------------------------- Properties
+
 
     /**
      * @return The HTTP status code used when the container needs to issue an
@@ -366,7 +368,6 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         }
     }
 
-
     /**
      * Try to authenticate with the specified username, which
      * matches the digest calculated using the given parameters using the
@@ -408,7 +409,8 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         try {
             valueBytes = serverDigestValue.getBytes(getDigestCharset());
         } catch (UnsupportedEncodingException uee) {
-            throw new IllegalArgumentException(sm.getString("realmBase.invalidDigestEncoding", getDigestEncoding()), uee);
+            log.error("Illegal digestEncoding: " + getDigestEncoding(), uee);
+            throw new IllegalArgumentException(uee.getMessage());
         }
 
         String serverDigest = MD5Encoder.encode(ConcurrentMessageDigest.digestMD5(valueBytes));
@@ -469,7 +471,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
      * {@inheritDoc}
      */
     @Override
-    public Principal authenticate(GSSContext gssContext, boolean storeCred) {
+    public Principal authenticate(GSSContext gssContext, boolean storeCreds) {
         if (gssContext.isEstablished()) {
             GSSName gssName = null;
             try {
@@ -479,24 +481,28 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
             }
 
             if (gssName!= null) {
+                String name = gssName.toString();
+
+                if (isStripRealmForGss()) {
+                    int i = name.indexOf('@');
+                    if (i > 0) {
+                        // Zero so we don;t leave a zero length name
+                        name = name.substring(0, i);
+                    }
+                }
                 GSSCredential gssCredential = null;
-                if (storeCred) {
-                    if (gssContext.getCredDelegState()) {
-                        try {
-                            gssCredential = gssContext.getDelegCred();
-                        } catch (GSSException e) {
-                            log.warn(sm.getString(
-                                    "realmBase.delegatedCredentialFail", gssName), e);
-                        }
-                    } else {
+                if (storeCreds && gssContext.getCredDelegState()) {
+                    try {
+                        gssCredential = gssContext.getDelegCred();
+                    } catch (GSSException e) {
                         if (log.isDebugEnabled()) {
                             log.debug(sm.getString(
-                                    "realmBase.credentialNotDelegated", gssName));
+                                    "realmBase.delegatedCredentialFail", name),
+                                    e);
                         }
                     }
                 }
-
-                return getPrincipal(gssName, gssCredential);
+                return getPrincipal(name, gssCredential);
             }
         } else {
             log.error(sm.getString("realmBase.gssContextNotEstablished"));
@@ -504,19 +510,6 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
         // Fail in all other cases
         return null;
-    }
-
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Principal authenticate(GSSName gssName, GSSCredential gssCredential) {
-        if (gssName == null) {
-            return null;
-        }
-
-        return getPrincipal(gssName, gssCredential);
     }
 
 
@@ -859,7 +852,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
                     log.debug("  No user authenticated, cannot grant access");
             } else {
                 for (int j = 0; j < roles.length; j++) {
-                    if (hasRole(request.getWrapper(), principal, roles[j])) {
+                    if (hasRole(null, principal, roles[j])) {
                         status = true;
                         if( log.isDebugEnabled() )
                             log.debug( "Role found:  " + roles[j]);
@@ -923,7 +916,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
      */
     @Override
     public boolean hasRole(Wrapper wrapper, Principal principal, String role) {
-        // Check for a role alias
+        // Check for a role alias defined in a <security-role-ref> element
         if (wrapper != null) {
             String realRole = wrapper.findSecurityReference(role);
             if (realRole != null) {
@@ -1023,7 +1016,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
             return true;
         }
         // Initialize variables we need to determine the appropriate action
-        int redirectPort = request.getConnector().getRedirectPortWithOffset();
+        int redirectPort = request.getConnector().getRedirectPort();
 
         // Is redirecting disabled?
         if (redirectPort <= 0) {
@@ -1166,7 +1159,8 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         try {
             valueBytes = digestValue.getBytes(getDigestCharset());
         } catch (UnsupportedEncodingException uee) {
-            throw new IllegalArgumentException(sm.getString("realmBase.invalidDigestEncoding", getDigestEncoding()), uee);
+            log.error("Illegal digestEncoding: " + getDigestEncoding(), uee);
+            throw new IllegalArgumentException(uee.getMessage());
         }
 
         return MD5Encoder.encode(ConcurrentMessageDigest.digestMD5(valueBytes));
@@ -1223,16 +1217,6 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
     protected abstract Principal getPrincipal(String username);
 
 
-    /**
-     * Get the principal associated with the specified user name.
-     *
-     * @param username The user name
-     * @param gssCredential the GSS credential of the principal
-     * @return the principal associated with the given user name.
-     * @deprecated This will be removed in Tomcat 10 onwards. Use
-     *             {@link #getPrincipal(GSSName, GSSCredential)} instead.
-     */
-    @Deprecated
     protected Principal getPrincipal(String username,
             GSSCredential gssCredential) {
         Principal p = getPrincipal(username);
@@ -1243,36 +1227,6 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
         return p;
     }
-
-
-    /**
-     * Get the principal associated with the specified {@link GSSName}.
-     *
-     * @param gssName The GSS name
-     * @param gssCredential the GSS credential of the principal
-     * @return the principal associated with the given user name.
-     */
-    protected Principal getPrincipal(GSSName gssName,
-            GSSCredential gssCredential) {
-        String name = gssName.toString();
-
-        if (isStripRealmForGss()) {
-            int i = name.indexOf('@');
-            if (i > 0) {
-                // Zero so we don't leave a zero length name
-                name = name.substring(0, i);
-            }
-        }
-
-        Principal p = getPrincipal(name);
-
-        if (p instanceof GenericPrincipal) {
-            ((GenericPrincipal) p).setGssCredential(gssCredential);
-        }
-
-        return p;
-    }
-
 
     /**
      * Return the Server object that is the ultimate parent for the container
@@ -1504,42 +1458,44 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
          */
         public static final AllRolesMode STRICT_AUTH_ONLY_MODE = new AllRolesMode("strictAuthOnly");
 
-        static AllRolesMode toMode(String name) {
+        static AllRolesMode toMode(String name)
+        {
             AllRolesMode mode;
-            if (name.equalsIgnoreCase(STRICT_MODE.name)) {
+            if( name.equalsIgnoreCase(STRICT_MODE.name) )
                 mode = STRICT_MODE;
-            } else if (name.equalsIgnoreCase(AUTH_ONLY_MODE.name)) {
+            else if( name.equalsIgnoreCase(AUTH_ONLY_MODE.name) )
                 mode = AUTH_ONLY_MODE;
-            } else if (name.equalsIgnoreCase(STRICT_AUTH_ONLY_MODE.name)) {
+            else if( name.equalsIgnoreCase(STRICT_AUTH_ONLY_MODE.name) )
                 mode = STRICT_AUTH_ONLY_MODE;
-            } else {
-                throw new IllegalStateException(
-                        sm.getString("realmBase.unknownAllRolesMode", name));
-            }
+            else
+                throw new IllegalStateException("Unknown mode, must be one of: strict, authOnly, strictAuthOnly");
             return mode;
         }
 
-        private AllRolesMode(String name) {
+        private AllRolesMode(String name)
+        {
             this.name = name;
         }
 
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(Object o)
+        {
             boolean equals = false;
-            if (o instanceof AllRolesMode) {
+            if( o instanceof AllRolesMode )
+            {
                 AllRolesMode mode = (AllRolesMode) o;
                 equals = name.equals(mode.name);
             }
             return equals;
         }
-
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return name.hashCode();
         }
-
         @Override
-        public String toString() {
+        public String toString()
+        {
             return name;
         }
     }

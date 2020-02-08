@@ -82,29 +82,7 @@ public class IOTools {
         byte[] buf = new byte[DEFAULT_BUFFER_SIZE];
         int numRead;
         while ( (numRead = is.read(buf) ) >= 0) {
-            if (os != null) {
-                os.write(buf, 0, numRead);
-            }
+            os.write(buf, 0, numRead);
         }
-    }
-
-
-    /**
-     * Read until EOF or the buffer is filled.
-     *
-     * @param is    The source to read from
-     * @param buf   The buffer to write to
-     *
-     * @return The number of bytes read
-     *
-     * @throws IOException If an I/O error occurs during the read
-     */
-    public static int readFully(InputStream is, byte[] buf) throws IOException {
-        int bytesRead = 0;
-        int read;
-        while (bytesRead < buf.length && ((read = is.read(buf, bytesRead, buf.length - bytesRead)) >= 0)) {
-            bytesRead += read;
-        }
-        return bytesRead;
     }
 }

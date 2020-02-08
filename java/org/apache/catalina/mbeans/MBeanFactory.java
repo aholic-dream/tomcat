@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.mbeans;
 
 import java.io.File;
@@ -181,7 +182,7 @@ public class MBeanFactory {
         }
         if (service == null ||
                 !service.getObjectName().getDomain().equals(domain)) {
-            throw new Exception(sm.getString("mBeanFactory.noService", domain));
+            throw new Exception("Service with the domain is not found");
         }
         return service;
 
@@ -460,7 +461,7 @@ public class MBeanFactory {
                            new Object [] {contextName},
                            new String [] {"java.lang.String"});
         } else {
-            log.warn(sm.getString("mBeanFactory.noDeployer", pname.getKeyProperty("host")));
+            log.warn("Deployer not found for "+pname.getKeyProperty("host"));
             Service service = getService(pname);
             Engine engine = service.getContainer();
             Host host = (Host) engine.findChild(pname.getKeyProperty("host"));
@@ -534,7 +535,7 @@ public class MBeanFactory {
             String defaultHost, String baseDir) throws Exception{
 
         if (!(container instanceof Server)) {
-            throw new Exception(sm.getString("mBeanFactory.notServer"));
+            throw new Exception("Container not Server");
         }
 
         StandardEngine engine = new StandardEngine();
@@ -698,7 +699,7 @@ public class MBeanFactory {
             if (objConnAddress != null) {
                 connAddress = ((InetAddress) objConnAddress).getHostAddress();
             }
-            String connPort = ""+conns[i].getPortWithOffset();
+            String connPort = ""+conns[i].getPort();
 
             if (address == null) {
                 // Don't combine this with outer if or we could get an NPE in
@@ -751,7 +752,7 @@ public class MBeanFactory {
                            new Object[] {pathStr},
                            new String[] {"java.lang.String"});
         } else {
-            log.warn(sm.getString("mBeanFactory.noDeployer", hostName));
+            log.warn("Deployer not found for "+hostName);
             Host host = (Host) engine.findChild(hostName);
             Context context = (Context) host.findChild(pathStr);
             // Remove this component from its parent component
@@ -760,7 +761,7 @@ public class MBeanFactory {
             try {
                 context.destroy();
             } catch (Exception e) {
-                log.warn(sm.getString("mBeanFactory.contextDestroyError"), e);
+                log.warn("Error during context [" + context.getName() + "] destroy ", e);
            }
 
         }

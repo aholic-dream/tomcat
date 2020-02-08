@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import javax.servlet.http.WebConnection;
-
 import org.apache.coyote.ProtocolException;
 import org.apache.coyote.http2.HpackDecoder.HeaderEmitter;
 import org.apache.juli.logging.Log;
@@ -169,7 +167,7 @@ class Http2Parser {
                     Integer.toString(streamId), Integer.toString(dataLength), padding));
         }
 
-        ByteBuffer dest = output.startRequestBodyFrame(streamId, payloadSize, endOfStream);
+        ByteBuffer dest = output.startRequestBodyFrame(streamId, payloadSize);
         if (dest == null) {
             swallow(streamId, dataLength, false, buffer);
             // Process padding before sending any notifications in case padding
@@ -322,10 +320,7 @@ class Http2Parser {
                     Http2Error.FRAME_SIZE_ERROR);
         }
 
-        if (payloadSize == 0 && !ack) {
-            // Ensure empty SETTINGS frame increments the overhead count
-            output.setting(null, 0);
-        } else {
+        if (payloadSize != 0) {
             // Process the settings
             byte[] setting = new byte[6];
             for (int i = 0; i < payloadSize / 6; i++) {
@@ -429,15 +424,9 @@ class Http2Parser {
                     Integer.toString(streamId)), Http2Error.PROTOCOL_ERROR);
         }
 
-        boolean endOfHeaders = Flags.isEndOfHeaders(flags);
-
-        // Used to detect abusive clients sending large numbers of small
-        // continuation frames
-        output.headersContinue(payloadSize, endOfHeaders);
-
         readHeaderPayload(streamId, payloadSize, buffer);
 
-        if (endOfHeaders) {
+        if (Flags.isEndOfHeaders(flags)) {
             headersCurrentStream = -1;
             onHeadersComplete(streamId);
         }
@@ -591,13 +580,11 @@ class Http2Parser {
         // going to be thrown.
         hpackDecoder.getHeaderEmitter().validateHeaders();
 
-        synchronized (output) {
-            output.headersEnd(streamId);
+        output.headersEnd(streamId);
 
-            if (headersEndStream) {
-                output.receivedEndOfStream(streamId);
-                headersEndStream = false;
-            }
+        if (headersEndStream) {
+            output.receivedEndOfStream(streamId);
+            headersEndStream = false;
         }
 
         // Reset size for new request if the buffer was previously expanded
@@ -657,10 +644,8 @@ class Http2Parser {
 
     /**
      * Read and validate the connection preface from input using blocking IO.
-     * @param webConnection The connection
-     * @param stream The current stream
      */
-    void readConnectionPreface(WebConnection webConnection, Stream stream) throws Http2Exception {
+    void readConnectionPreface() throws Http2Exception {
         byte[] data = new byte[CLIENT_PREFACE_START.length];
         try {
             input.fill(true, data);
@@ -728,7 +713,7 @@ class Http2Parser {
         HpackDecoder getHpackDecoder();
 
         // Data frames
-        ByteBuffer startRequestBodyFrame(int streamId, int payloadSize, boolean endOfStream) throws Http2Exception;
+        ByteBuffer startRequestBodyFrame(int streamId, int payloadSize) throws Http2Exception;
         void endRequestBodyFrame(int streamId) throws Http2Exception;
         void receivedEndOfStream(int streamId) throws ConnectionException;
         void swallowedPadding(int streamId, int paddingLength) throws ConnectionException, IOException;
@@ -736,7 +721,6 @@ class Http2Parser {
         // Header frames
         HeaderEmitter headersStart(int streamId, boolean headersEndStream)
                 throws Http2Exception, IOException;
-        void headersContinue(int payloadSize, boolean endOfHeaders);
         void headersEnd(int streamId) throws ConnectionException;
 
         // Priority frames (also headers)

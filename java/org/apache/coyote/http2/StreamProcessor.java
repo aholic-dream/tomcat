@@ -71,23 +71,17 @@ class StreamProcessor extends AbstractProcessor {
                 try {
                     state = process(socketWrapper, event);
 
-                    if (state == SocketState.LONG) {
-                        handler.getProtocol().getHttp11Protocol().addWaitingProcessor(this);
-                    } else if (state == SocketState.CLOSED) {
-                        handler.getProtocol().getHttp11Protocol().removeWaitingProcessor(this);
+                    if (state == SocketState.CLOSED) {
                         if (!getErrorState().isConnectionIoAllowed()) {
                             ConnectionException ce = new ConnectionException(sm.getString(
                                     "streamProcessor.error.connection", stream.getConnectionId(),
                                     stream.getIdentifier()), Http2Error.INTERNAL_ERROR);
                             stream.close(ce);
                         } else if (!getErrorState().isIoAllowed()) {
-                            StreamException se = stream.getResetException();
-                            if (se == null) {
-                                se = new StreamException(sm.getString(
-                                        "streamProcessor.error.stream", stream.getConnectionId(),
-                                        stream.getIdentifier()), Http2Error.INTERNAL_ERROR,
-                                        stream.getIdAsInt());
-                            }
+                            StreamException se = new StreamException(sm.getString(
+                                    "streamProcessor.error.stream", stream.getConnectionId(),
+                                    stream.getIdentifier()), Http2Error.INTERNAL_ERROR,
+                                    stream.getIdentifier().intValue());
                             stream.close(se);
                         }
                     }
@@ -148,7 +142,7 @@ class StreamProcessor extends AbstractProcessor {
         headers.addValue(":status").setString(Integer.toString(statusCode));
 
         // Check to see if a response body is present
-        if (!(statusCode < 200 || statusCode == 204 || statusCode == 205 || statusCode == 304)) {
+        if (!(statusCode < 200 || statusCode == 205 || statusCode == 304)) {
             String contentType = coyoteResponse.getContentType();
             if (contentType != null) {
                 headers.setValue("content-type").setString(contentType);
@@ -156,20 +150,6 @@ class StreamProcessor extends AbstractProcessor {
             String contentLanguage = coyoteResponse.getContentLanguage();
             if (contentLanguage != null) {
                 headers.setValue("content-language").setString(contentLanguage);
-            }
-            // Add a content-length header if a content length has been set unless
-            // the application has already added one
-            long contentLength = coyoteResponse.getContentLengthLong();
-            if (contentLength != -1 && headers.getValue("content-length") == null) {
-                headers.addValue("content-length").setLong(contentLength);
-            }
-        } else {
-            if (statusCode == 205) {
-                // RFC 7231 requires the server to explicitly signal an empty
-                // response in this case
-                coyoteResponse.setContentLength(0);
-            } else {
-                coyoteResponse.setContentLength(-1);
             }
         }
 
@@ -258,12 +238,6 @@ class StreamProcessor extends AbstractProcessor {
 
 
     @Override
-    protected final boolean isReadyForRead() {
-        return stream.getInputBuffer().isReadyForRead();
-    }
-
-
-    @Override
     protected final boolean isRequestBodyFullyRead() {
         return stream.getInputBuffer().isRequestBodyFullyRead();
     }
@@ -271,15 +245,13 @@ class StreamProcessor extends AbstractProcessor {
 
     @Override
     protected final void registerReadInterest() {
-        // Should never be called for StreamProcessor as isReadyForRead() is
-        // overridden
-        throw new UnsupportedOperationException();
+        stream.getInputBuffer().registerReadInterest();
     }
 
 
     @Override
-    protected final boolean isReadyForWrite() {
-        return stream.isReadyForWrite();
+    protected final boolean isReady() {
+        return stream.isReady();
     }
 
 
@@ -371,13 +343,6 @@ class StreamProcessor extends AbstractProcessor {
             setErrorState(ErrorState.CLOSE_NOW, e);
         }
 
-        if (!isAsync()) {
-            // If this is an async request then the request ends when it has
-            // been completed. The AsyncContext is responsible for calling
-            // endRequest() in that case.
-            endRequest();
-        }
-
         if (sendfileState == SendfileState.PENDING) {
             return SocketState.SENDFILE;
         } else if (getErrorState().isError()) {
@@ -408,7 +373,7 @@ class StreamProcessor extends AbstractProcessor {
             // has been emptied then the code below will call
             // dispatch() which will enable the
             // Response to respond to this event.
-            if (stream.isReadyForWrite()) {
+            if (stream.isReady()) {
                 // Unexpected
                 throw new IllegalStateException();
             }
@@ -419,31 +384,7 @@ class StreamProcessor extends AbstractProcessor {
 
 
     @Override
-    protected final SocketState dispatchEndRequest() throws IOException {
-        endRequest();
+    protected final SocketState dispatchEndRequest() {
         return SocketState.CLOSED;
-    }
-
-
-    private void endRequest() throws IOException {
-        if (!stream.isInputFinished() && getErrorState().isIoAllowed()) {
-            if (handler.hasAsyncIO() && !stream.isContentLengthInconsistent()) {
-                // Need an additional checks for asyncIO as the end of stream
-                // might have been set on the header frame but not processed
-                // yet. Checking for this here so the extra processing only
-                // occurs on the potential error condition rather than on every
-                // request.
-                return;
-            }
-            // The request has been processed but the request body has not been
-            // fully read. This typically occurs when Tomcat rejects an upload
-            // of some form (e.g. PUT or POST). Need to tell the client not to
-            // send any more data but only if a reset has not already been
-            // triggered.
-            StreamException se = new StreamException(
-                    sm.getString("streamProcessor.cancel", stream.getConnectionId(),
-                            stream.getIdentifier()), Http2Error.CANCEL, stream.getIdAsInt());
-            handler.sendStreamReset(se);
-        }
     }
 }

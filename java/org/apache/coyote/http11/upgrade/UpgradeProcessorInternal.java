@@ -73,17 +73,6 @@ public class UpgradeProcessorInternal extends UpgradeProcessorBase {
     }
 
 
-    @Override
-    public void timeoutAsync(long now) {
-        internalHttpUpgradeHandler.timeoutAsync(now);
-    }
-
-
-    public boolean hasAsyncIO() {
-        return internalHttpUpgradeHandler.hasAsyncIO();
-    }
-
-
     // --------------------------------------------------- AutoCloseable methods
 
     @Override

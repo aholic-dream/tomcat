@@ -41,7 +41,6 @@ import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.Valve;
 import org.apache.catalina.loader.WebappClassLoaderBase;
-import org.apache.catalina.util.ContextName;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -267,7 +266,10 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * ({@inheritDoc}
+     * Return the XML root for this Host.  This can be an absolute
+     * pathname, a relative pathname, or a URL.
+     * If null, defaults to
+     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
      */
     @Override
     public String getXmlBase() {
@@ -276,7 +278,12 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * ({@inheritDoc}
+     * Set the Xml root for this Host.  This can be an absolute
+     * pathname, a relative pathname, or a URL.
+     * If null, defaults to
+     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
+     *
+     * @param xmlBase The new XML root
      */
     @Override
     public void setXmlBase(String xmlBase) {
@@ -688,20 +695,11 @@ public class StandardHost extends ContainerBase implements Host {
     @Override
     public void addChild(Container child) {
 
+        child.addLifecycleListener(new MemoryLeakTrackingListener());
+
         if (!(child instanceof Context))
             throw new IllegalArgumentException
                 (sm.getString("standardHost.notContext"));
-
-        child.addLifecycleListener(new MemoryLeakTrackingListener());
-
-        // Avoid NPE for case where Context is defined in server.xml with only a
-        // docBase
-        Context context = (Context) child;
-        if (context.getPath() == null) {
-            ContextName cn = new ContextName(context.getDocBase(), true);
-            context.setPath(cn.getPath());
-        }
-
         super.addChild(child);
 
     }
@@ -844,24 +842,25 @@ public class StandardHost extends ContainerBase implements Host {
 
     // -------------------- JMX  --------------------
     /**
-     * @return the MBean Names of the Valves associated with this Host
-     *
-     * @exception Exception if an MBean cannot be created or registered
-     */
-    public String[] getValveNames() throws Exception {
-        Valve [] valves = this.getPipeline().getValves();
-        String [] mbeanNames = new String[valves.length];
-        for (int i = 0; i < valves.length; i++) {
-            if (valves[i] instanceof JmxEnabled) {
-                ObjectName oname = ((JmxEnabled) valves[i]).getObjectName();
-                if (oname != null) {
-                    mbeanNames[i] = oname.toString();
-                }
-            }
-        }
+      * @return the MBean Names of the Valves associated with this Host
+      *
+      * @exception Exception if an MBean cannot be created or registered
+      */
+     public String[] getValveNames() throws Exception {
+         Valve [] valves = this.getPipeline().getValves();
+         String [] mbeanNames = new String[valves.length];
+         for (int i = 0; i < valves.length; i++) {
+             if (valves[i] instanceof JmxEnabled) {
+                 ObjectName oname = ((JmxEnabled) valves[i]).getObjectName();
+                 if (oname != null) {
+                     mbeanNames[i] = oname.toString();
+                 }
+             }
+         }
 
-        return mbeanNames;
-    }
+         return mbeanNames;
+
+     }
 
     public String[] getAliases() {
         synchronized (aliasesLock) {

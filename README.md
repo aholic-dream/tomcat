@@ -1,5 +1,5 @@
 ## Welcome to Apache Tomcat!
-
+增加了pom.xml与tomcat-build-libs 项目可直接编译运行,执行入口:org.apache.catalina.startup.Bootstrap(记得配置vm options:-Dcatalina.home=D:\code\tomcat-read -Dcatalina.base=D:\code\tomcat-read -Djava.endorsed.dirs=D:\code\tomcat-read\endorsed -Djava.io.tmpdir=D:\code\tomcat-read\temp -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Djava.util.logging.config.file=D:\code\tomcat-read\conf\logging.properties -Djava.protocol.handler.pkgs=org.apache.catalina.webresources -Djdk.tls.ephemeralDHKeySize=2048)
 ### What Is It?
 
 The Apache Tomcat® software is an open source implementation of the Java
@@ -77,3 +77,10 @@ instructions for reporting a bug
 ### Contributing
 
 Please see [CONTRIBUTING](CONTRIBUTING.md) for more info.
+
+### vm options
+
+```
+-Dcatalina.home=D:\open-source\tomcat -Dcatalina.base=D:\open-source\tomcat -Djava.endorsed.dirs=D:\open-source\tomcat\endorsed -Djava.io.tmpdir=D:\open-source\tomcat\temp -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Djava.util.logging.config.file=D:\open-source\tomcat\conf\logging.properties -Djava.protocol.handler.pkgs=org.apache.catalina.webresources -Djdk.tls.ephemeralDHKeySize=2048
+```
+

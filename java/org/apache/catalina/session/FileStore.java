@@ -127,17 +127,17 @@ public final class FileStore extends StoreBase {
     @Override
     public int getSize() throws IOException {
         // Acquire the list of files in our storage directory
-        File dir = directory();
-        if (dir == null) {
+        File file = directory();
+        if (file == null) {
             return 0;
         }
-        String files[] = dir.list();
+        String files[] = file.list();
 
         // Figure out which files are sessions
         int keycount = 0;
         if (files != null) {
-            for (String file : files) {
-                if (file.endsWith(FILE_EXT)) {
+            for (int i = 0; i < files.length; i++) {
+                if (files[i].endsWith(FILE_EXT)) {
                     keycount++;
                 }
             }
@@ -172,23 +172,24 @@ public final class FileStore extends StoreBase {
     @Override
     public String[] keys() throws IOException {
         // Acquire the list of files in our storage directory
-        File dir = directory();
-        if (dir == null) {
+        File file = directory();
+        if (file == null) {
             return new String[0];
         }
-        String files[] = dir.list();
+
+        String files[] = file.list();
 
         // Bugzilla 32130
-        if (files == null || files.length < 1) {
+        if((files == null) || (files.length < 1)) {
             return new String[0];
         }
 
         // Build and return the list of session identifiers
         List<String> list = new ArrayList<>();
         int n = FILE_EXT.length();
-        for (String file : files) {
-            if (file.endsWith(FILE_EXT)) {
-                list.add (file.substring(0, file.length() - n));
+        for (int i = 0; i < files.length; i++) {
+            if (files[i].endsWith(FILE_EXT)) {
+                list.add(files[i].substring(0, files[i].length() - n));
             }
         }
         return list.toArray(new String[list.size()]);
@@ -209,7 +210,11 @@ public final class FileStore extends StoreBase {
     public Session load(String id) throws ClassNotFoundException, IOException {
         // Open an input stream to the specified pathname, if any
         File file = file(id);
-        if (file == null || !file.exists()) {
+        if (file == null) {
+            return null;
+        }
+
+        if (!file.exists()) {
             return null;
         }
 

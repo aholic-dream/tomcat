@@ -468,29 +468,20 @@ public class DeltaManager extends ClusterManagerBase{
      */
     @Override
     public Session createEmptySession() {
-        return new DeltaSession(this);
+        return getNewDeltaSession() ;
     }
 
     /**
      * Get new session class to be used in the doLoad() method.
-     *
      * @return a new session
-     *
-     * @deprecated Unused. This will be removed in Tomcat 10.
      */
-    @Deprecated
     protected DeltaSession getNewDeltaSession() {
         return new DeltaSession(this);
     }
 
     @Override
     public void changeSessionId(Session session) {
-        rotateSessionId(session);
-    }
-
-    @Override
-    public String rotateSessionId(Session session) {
-        return rotateSessionId(session, true);
+        changeSessionId(session, true);
     }
 
     @Override
@@ -498,23 +489,10 @@ public class DeltaManager extends ClusterManagerBase{
         changeSessionId(session, newId, true);
     }
 
-    /**
-     * @param session The session
-     * @param notify Notify change
-     * @deprecated Will be removed in Tomcat 10
-     */
-    @Deprecated
     protected void changeSessionId(Session session, boolean notify) {
         String orgSessionID = session.getId();
         super.changeSessionId(session);
         if (notify) sendChangeSessionId(session.getId(), orgSessionID);
-    }
-
-    protected String rotateSessionId(Session session, boolean notify) {
-        String orgSessionID = session.getId();
-        String newId = super.rotateSessionId(session);
-        if (notify) sendChangeSessionId(session.getId(), orgSessionID);
-        return newId;
     }
 
     protected void changeSessionId(Session session, String newId, boolean notify) {
@@ -580,12 +558,7 @@ public class DeltaManager extends ClusterManagerBase{
      * @return The request
      * @throws ClassNotFoundException Serialization error
      * @throws IOException IO error with serialization
-     *
-     * @deprecated Unused. This will be removed in Tomcat 10.
-     *             Calling this method may result in a deadlock. See:
-     *             https://bz.apache.org/bugzilla/show_bug.cgi?id=62841
      */
-    @Deprecated
     protected DeltaRequest deserializeDeltaRequest(DeltaSession session, byte[] data)
             throws ClassNotFoundException, IOException {
         session.lock();
@@ -607,12 +580,7 @@ public class DeltaManager extends ClusterManagerBase{
      * @param deltaRequest The request to serialize
      * @return serialized delta request
      * @throws IOException IO error with serialization
-     *
-     * @deprecated Unused. This will be removed in Tomcat 10.
-     *             Calling this method may result in a deadlock. See:
-     *             https://bz.apache.org/bugzilla/show_bug.cgi?id=62841
      */
-    @Deprecated
     protected byte[] serializeDeltaRequest(DeltaSession session, DeltaRequest deltaRequest)
             throws IOException {
         session.lock();
@@ -875,7 +843,7 @@ public class DeltaManager extends ClusterManagerBase{
                         new Date(beforeSendTime), Long.valueOf(reqNow - beforeSendTime)));
         } else {
             if (log.isInfoEnabled())
-                log.info(sm.getString("deltaManager.sessionReceived", getName(),
+                log.info(sm.getString("deltaManager.sessionReceived",getName(),
                         new Date(beforeSendTime), Long.valueOf(reqNow - beforeSendTime)));
         }
     }
@@ -981,6 +949,7 @@ public class DeltaManager extends ClusterManagerBase{
      *            whether this method has been called during session expiration
      * @return a SessionMessage to be sent,
      */
+    @SuppressWarnings("null") // session can't be null when it is used
     public ClusterMessage requestCompleted(String sessionId, boolean expires) {
         DeltaSession session = null;
         SessionMessage msg = null;
@@ -991,18 +960,24 @@ public class DeltaManager extends ClusterManagerBase{
                 // removed the session from the Manager.
                 return null;
             }
-            if (session.isDirty()) {
+            DeltaRequest deltaRequest = session.getDeltaRequest();
+            session.lock();
+            if (deltaRequest.getSize() > 0) {
                 counterSend_EVT_SESSION_DELTA++;
+                byte[] data = serializeDeltaRequest(session,deltaRequest);
                 msg = new SessionMessageImpl(getName(),
                                              SessionMessage.EVT_SESSION_DELTA,
-                                             session.getDiff(),
+                                             data,
                                              sessionId,
                                              sessionId + "-" + System.currentTimeMillis());
+                session.resetDeltaRequest();
             }
         } catch (IOException x) {
             log.error(sm.getString("deltaManager.createMessage.unableCreateDeltaRequest",
                     sessionId), x);
             return null;
+        } finally {
+            if (session!=null) session.unlock();
         }
         if(msg == null) {
             if(!expires && !session.isPrimarySession()) {
@@ -1036,7 +1011,7 @@ public class DeltaManager extends ClusterManagerBase{
                                              sessionId + "-" + System.currentTimeMillis());
                 if (log.isDebugEnabled()) {
                     log.debug(sm.getString("deltaManager.createMessage.access",
-                            getName(), sessionId));
+                            getName(),sessionId));
                 }
             }
         }
@@ -1123,7 +1098,7 @@ public class DeltaManager extends ClusterManagerBase{
         int expireDirect  = 0 ;
         int expireIndirect = 0 ;
 
-        if (log.isDebugEnabled()) {
+        if(log.isDebugEnabled()) {
             log.debug("Start expire all sessions " + getName() + " at " + timeNow +
                     " sessioncount " + sessions.length);
         }
@@ -1141,12 +1116,13 @@ public class DeltaManager extends ClusterManagerBase{
             }//end if
         }//for
         long timeEnd = System.currentTimeMillis();
-        if (log.isDebugEnabled()) {
+        if(log.isDebugEnabled()) {
             log.debug("End expire sessions " + getName() +
                     " expire processingTime " + (timeEnd - timeNow) +
                     " expired direct sessions: " + expireDirect +
                     " expired direct sessions: " + expireIndirect);
         }
+
     }
 
     @Override
@@ -1257,8 +1233,14 @@ public class DeltaManager extends ClusterManagerBase{
                 log.debug(sm.getString("deltaManager.receiveMessage.delta",
                         getName(), msg.getSessionID()));
             }
-
-            session.deserializeAndExecuteDeltaRequest(delta);
+            session.lock();
+            try {
+                DeltaRequest dreq = deserializeDeltaRequest(session, delta);
+                dreq.execute(session, isNotifyListenersOnReplication());
+                session.setPrimarySession(false);
+            } finally {
+                session.unlock();
+            }
         }
     }
 

@@ -137,7 +137,7 @@ public class ImportHandler {
         standardPackages.put("javax.servlet.jsp", servletJspClassNames);
 
         Set<String> javaLangClassNames = new HashSet<>();
-        // Taken from Java 14 EA27 Javadoc
+        // Taken from Java 11 EA18 Javadoc
         // Interfaces
         javaLangClassNames.add("Appendable");
         javaLangClassNames.add("AutoCloseable");
@@ -164,7 +164,6 @@ public class ImportHandler {
         javaLangClassNames.add("Compiler");
         javaLangClassNames.add("Double");
         javaLangClassNames.add("Enum");
-        javaLangClassNames.add("Enum.EnumDesc");
         javaLangClassNames.add("Float");
         javaLangClassNames.add("InheritableThreadLocal");
         javaLangClassNames.add("Integer");
@@ -179,7 +178,6 @@ public class ImportHandler {
         javaLangClassNames.add("Process");
         javaLangClassNames.add("ProcessBuilder");
         javaLangClassNames.add("ProcessBuilder.Redirect");
-        javaLangClassNames.add("Record");
         javaLangClassNames.add("Runtime");
         javaLangClassNames.add("Runtime.Version");
         javaLangClassNames.add("RuntimePermission");
@@ -465,12 +463,10 @@ public class ImportHandler {
             return null;
         }
 
-        // Class must be public, non-abstract, not an interface and (for
-        // Java 9+) in an exported package
-        JreCompat jreCompat = JreCompat.getInstance();
+        // Class must be public, non-abstract and not an interface
         int modifiers = clazz.getModifiers();
         if (!Modifier.isPublic(modifiers) || Modifier.isAbstract(modifiers) ||
-                Modifier.isInterface(modifiers) || !jreCompat.isExported(clazz)) {
+                Modifier.isInterface(modifiers)) {
             if (throwException) {
                 throw new ELException(Util.message(
                         null, "importHandler.invalidClass", name));

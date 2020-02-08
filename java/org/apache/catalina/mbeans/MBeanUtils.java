@@ -38,7 +38,6 @@ import org.apache.tomcat.util.descriptor.web.ContextResource;
 import org.apache.tomcat.util.descriptor.web.ContextResourceLink;
 import org.apache.tomcat.util.modeler.ManagedBean;
 import org.apache.tomcat.util.modeler.Registry;
-import org.apache.tomcat.util.res.StringManager;
 
 
 /**
@@ -50,8 +49,6 @@ import org.apache.tomcat.util.res.StringManager;
 public class MBeanUtils {
 
     // ------------------------------------------------------- Static Variables
-
-    protected static final StringManager sm = StringManager.getManager(MBeanUtils.class);
 
     /**
      * The set of exceptions to the normal rules used by
@@ -121,7 +118,7 @@ public class MBeanUtils {
         String mname = createManagedName(environment);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -152,7 +149,7 @@ public class MBeanUtils {
         String mname = createManagedName(resource);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -183,7 +180,7 @@ public class MBeanUtils {
         String mname = createManagedName(resourceLink);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -214,7 +211,7 @@ public class MBeanUtils {
         String mname = createManagedName(group);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -245,7 +242,7 @@ public class MBeanUtils {
         String mname = createManagedName(role);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -276,7 +273,7 @@ public class MBeanUtils {
         String mname = createManagedName(user);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();
@@ -307,7 +304,7 @@ public class MBeanUtils {
         String mname = createManagedName(userDatabase);
         ManagedBean managed = registry.findManagedBean(mname);
         if (managed == null) {
-            Exception e = new Exception(sm.getString("mBeanUtils.noManagedBean", mname));
+            Exception e = new Exception("ManagedBean is not found with "+mname);
             throw new MBeanException(e);
         }
         String domain = managed.getDomain();

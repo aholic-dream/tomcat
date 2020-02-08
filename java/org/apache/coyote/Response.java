@@ -503,9 +503,6 @@ public final class Response {
     }
 
 
-    /**
-     * @return The name of the current encoding
-     */
     public String getCharacterEncoding() {
         return characterEncoding;
     }
@@ -564,7 +561,8 @@ public final class Response {
 
         String ret = contentType;
 
-        if (ret != null && charset != null) {
+        if (ret != null
+            && charset != null) {
             ret = ret + ";charset=" + characterEncoding;
         }
 

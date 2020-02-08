@@ -79,7 +79,12 @@ public class FragmentJarScannerCallback implements JarScannerCallback {
                 }
             }
         } finally {
-            addFragment(fragment, jar.getJarFileURL());
+            fragment.setURL(jar.getJarFileURL());
+            if (fragment.getName() == null) {
+                fragment.setName(fragment.getURL().toString());
+            }
+            fragment.setJarName(extractJarFileName(jar.getJarFileURL()));
+            fragments.put(fragment.getName(), fragment);
         }
     }
 
@@ -120,27 +125,13 @@ public class FragmentJarScannerCallback implements JarScannerCallback {
                 fragment.setDistributable(true);
             }
         } finally {
-            addFragment(fragment, file.toURI().toURL());
+            fragment.setURL(file.toURI().toURL());
+            if (fragment.getName() == null) {
+                fragment.setName(fragment.getURL().toString());
+            }
+            fragment.setJarName(file.getName());
+            fragments.put(fragment.getName(), fragment);
         }
-    }
-
-
-    private void addFragment(WebXml fragment, URL url) {
-        fragment.setURL(url);
-        if (fragment.getName() == null) {
-            fragment.setName(url.toString());
-        }
-        fragment.setJarName(extractJarFileName(url));
-        if (fragments.containsKey(fragment.getName())) {
-            // Duplicate. Mark the fragment that has already been found with
-            // this name as having a duplicate so Tomcat can handle it
-            // correctly when the fragments are being ordered.
-            String duplicateName = fragment.getName();
-            fragments.get(duplicateName).setDuplicated(true);
-            // Rename the current fragment so it doesn't clash
-            fragment.setName(url.toString());
-        }
-        fragments.put(fragment.getName(), fragment);
     }
 
 

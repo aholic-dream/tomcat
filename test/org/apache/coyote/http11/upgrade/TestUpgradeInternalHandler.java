@@ -60,8 +60,8 @@ public class TestUpgradeInternalHandler extends TomcatBaseTest {
     @Test
     public void testUpgradeInternal() throws Exception {
         Assume.assumeTrue(
-                "Only supported on NIO X",
-                getTomcatInstance().getConnector().getProtocolHandlerClassName().contains("Nio"));
+                "Only supported on NIO 2",
+                getTomcatInstance().getConnector().getProtocolHandlerClassName().contains("Nio2"));
 
         UpgradeConnection uc = doUpgrade(EchoAsync.class);
         PrintWriter pw = new PrintWriter(uc.getWriter());
@@ -87,7 +87,6 @@ public class TestUpgradeInternalHandler extends TomcatBaseTest {
             Class<? extends HttpUpgradeHandler> upgradeHandlerClass) throws Exception {
         // Setup Tomcat instance
         Tomcat tomcat = getTomcatInstance();
-        Assert.assertTrue(tomcat.getConnector().setProperty("useAsyncIO", "true"));
 
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
@@ -252,15 +251,9 @@ public class TestUpgradeInternalHandler extends TomcatBaseTest {
             case DISCONNECT:
             case ERROR:
             case TIMEOUT:
-            case CONNECT_FAIL:
                 return SocketState.CLOSED;
             }
             return SocketState.UPGRADED;
-        }
-
-        @Override
-        public void timeoutAsync(long now) {
-            // NO-OP
         }
 
         @Override

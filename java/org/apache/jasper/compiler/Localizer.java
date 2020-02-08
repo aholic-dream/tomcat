@@ -37,6 +37,7 @@ public class Localizer {
             bundle = ResourceBundle.getBundle("org.apache.jasper.resources.LocalStrings");
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
+            t.printStackTrace();
         }
     }
 
@@ -54,9 +55,7 @@ public class Localizer {
     public static String getMessage(String errCode) {
         String errMsg = errCode;
         try {
-            if (bundle != null) {
-                errMsg = bundle.getString(errCode);
-            }
+            errMsg = bundle.getString(errCode);
         } catch (MissingResourceException e) {
         }
         return errMsg;

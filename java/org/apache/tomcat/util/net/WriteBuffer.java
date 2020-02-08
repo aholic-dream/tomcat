@@ -43,9 +43,6 @@ public class WriteBuffer {
         this.bufferSize = bufferSize;
     }
 
-    void clear() {
-        buffers.clear();
-    }
 
     void add(byte[] buf, int offset, int length) {
         ByteBufferHolder holder = getByteBufferHolder(length);

@@ -36,8 +36,9 @@ public class ConstantPool {
 
     private final Constant[] constant_pool;
 
+
     /**
-     * Reads constants from given input stream.
+     * Read constants from given input stream.
      *
      * @param input Input stream
      * @throws IOException
@@ -67,8 +68,9 @@ public class ConstantPool {
         }
     }
 
+
     /**
-     * Gets constant from constant pool.
+     * Get constant from constant pool.
      *
      * @param  index Index in constant pool
      * @return Constant value
@@ -82,8 +84,9 @@ public class ConstantPool {
         return constant_pool[index];
     }
 
+
     /**
-     * Gets constant from constant pool and check whether it has the
+     * Get constant from constant pool and check whether it has the
      * expected type.
      *
      * @param  index Index in constant pool

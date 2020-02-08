@@ -209,6 +209,7 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
             }
         }
         return result;
+
     }
 
     private static class SendResult {
@@ -331,7 +332,7 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
     }
 
     @Override
-    protected void finalize() throws Throwable {
+    public void finalize() throws Throwable {
         try {disconnect(); }catch ( Exception e){/*Ignore*/}
         try {
             selector.close();

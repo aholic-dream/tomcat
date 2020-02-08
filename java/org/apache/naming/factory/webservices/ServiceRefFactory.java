@@ -65,32 +65,31 @@ public class ServiceRefFactory implements ObjectFactory {
      */
     @Override
     public Object getObjectInstance(Object obj, Name name, Context nameCtx,
-            Hashtable<?,?> environment) throws Exception {
+            Hashtable<?,?> environment)
+    throws Exception {
 
         if (obj instanceof ServiceRef) {
             ServiceRef ref = (ServiceRef) obj;
 
             // ClassLoader
-            ClassLoader tcl = Thread.currentThread().getContextClassLoader();
-            if (tcl == null) {
+            ClassLoader tcl =
+                Thread.currentThread().getContextClassLoader();
+            if (tcl == null)
                 tcl = this.getClass().getClassLoader();
-            }
             ServiceFactory factory = ServiceFactory.newInstance();
             javax.xml.rpc.Service service = null;
 
             // Service Interface
             RefAddr tmp = ref.get(ServiceRef.SERVICE_INTERFACE);
             String serviceInterface = null;
-            if (tmp != null) {
+            if (tmp != null)
                 serviceInterface = (String) tmp.getContent();
-            }
 
             // WSDL
             tmp = ref.get(ServiceRef.WSDL);
             String wsdlRefAddr = null;
-            if (tmp != null) {
+            if (tmp != null)
                 wsdlRefAddr = (String) tmp.getContent();
-            }
 
             // PortComponent
             Hashtable<String,QName> portComponentRef = new Hashtable<>();
@@ -125,7 +124,8 @@ public class ServiceRefFactory implements ObjectFactory {
                                 serviceQname );
                     }
                 } catch (Exception e) {
-                    NamingException ex = new NamingException("Could not create service");
+                    NamingException ex = new NamingException
+                    ("Could not create service");
                     ex.initCause(e);
                     throw ex;
                 }
@@ -134,7 +134,8 @@ public class ServiceRefFactory implements ObjectFactory {
                 try {
                     serviceInterfaceClass = tcl.loadClass(serviceInterface);
                 } catch(ClassNotFoundException e) {
-                    NamingException ex = new NamingException("Could not load service Interface");
+                    NamingException ex = new NamingException
+                    ("Could not load service Interface");
                     ex.initCause(e);
                     throw ex;
                 }
@@ -145,7 +146,8 @@ public class ServiceRefFactory implements ObjectFactory {
                 try {
                     if (wsdlRefAddr == null) {
                         if (!Service.class.isAssignableFrom(serviceInterfaceClass)) {
-                            throw new NamingException("service Interface should extend javax.xml.rpc.Service");
+                            throw new NamingException
+                            ("service Interface should extend javax.xml.rpc.Service");
                         }
                         service = factory.loadService( serviceInterfaceClass );
                     } else {
@@ -154,7 +156,8 @@ public class ServiceRefFactory implements ObjectFactory {
                                 new Properties() );
                     }
                 } catch (Exception e) {
-                    NamingException ex = new NamingException("Could not create service");
+                    NamingException ex = new NamingException
+                    ("Could not create service");
                     ex.initCause(e);
                     throw ex;
                 }
@@ -173,10 +176,11 @@ public class ServiceRefFactory implements ObjectFactory {
                     Definition def = reader.readWSDL((new URL(wsdlRefAddr)).toExternalForm());
 
                     javax.wsdl.Service wsdlservice = def.getService(serviceQname);
-                    @SuppressWarnings("unchecked") // Can't change the API
+                    @SuppressWarnings("unchecked")
                     Map<String,?> ports = wsdlservice.getPorts();
                     Method m = serviceInterfaceClass.getMethod("setEndpointAddress",
-                            new Class[] { java.lang.String.class, java.lang.String.class });
+                            new Class[] { java.lang.String.class,
+                            java.lang.String.class });
                     for (String portName : ports.keySet()) {
                         Port port = wsdlservice.getPort(portName);
                         String endpoint = getSOAPLocation(port);
@@ -193,7 +197,8 @@ public class ServiceRefFactory implements ObjectFactory {
                             throw (VirtualMachineError) cause;
                         }
                     }
-                    NamingException ex = new NamingException("Error while reading Wsdl File");
+                    NamingException ex = new NamingException
+                    ("Error while reading Wsdl File");
                     ex.initCause(e);
                     throw ex;
                 }
@@ -202,7 +207,7 @@ public class ServiceRefFactory implements ObjectFactory {
             ServiceProxy proxy = new ServiceProxy(service);
 
             // Use port-component-ref
-            for (int i = 0; i < ref.size(); i++) {
+            for (int i = 0; i < ref.size(); i++)
                 if (ServiceRef.SERVICEENDPOINTINTERFACE.equals(ref.get(i).getType())) {
                     String serviceendpoint = "";
                     String portlink = "";
@@ -214,7 +219,6 @@ public class ServiceRefFactory implements ObjectFactory {
                     portComponentRef.put(serviceendpoint, new QName(portlink));
 
                 }
-            }
             proxy.setPortComponentRef(portComponentRef);
 
             // Instantiate service with proxy class
@@ -242,9 +246,8 @@ public class ServiceRefFactory implements ObjectFactory {
 
                     // Loading handler Class
                     tmp = handlerRef.get(HandlerRef.HANDLER_CLASS);
-                    if ((tmp == null) || (tmp.getContent() == null)) {
+                    if ((tmp == null) || (tmp.getContent() == null))
                         break;
-                    }
                     Class<?> handlerClass = null;
                     try {
                         handlerClass = tcl.loadClass((String) tmp.getContent());
@@ -257,7 +260,7 @@ public class ServiceRefFactory implements ObjectFactory {
                     List<QName> headers = new ArrayList<>();
                     Hashtable<String,String> config = new Hashtable<>();
                     List<String> portNames = new ArrayList<>();
-                    for (int i = 0; i < handlerRef.size(); i++) {
+                    for (int i = 0; i < handlerRef.size(); i++)
                         if (HandlerRef.HANDLER_LOCALPART.equals(handlerRef.get(i).getType())) {
                             String localpart = "";
                             String namespace = "";
@@ -286,7 +289,6 @@ public class ServiceRefFactory implements ObjectFactory {
                             portName = (String) handlerRef.get(i).getContent();
                             portNames.add(portName);
                         }
-                    }
 
                     // Set the handlers informations
                     handlerInfo.setHandlerClass(handlerClass);
@@ -300,9 +302,9 @@ public class ServiceRefFactory implements ObjectFactory {
                         }
                     } else {
                         Enumeration<QName> e = portComponentRef.elements();
-                        while(e.hasMoreElements()) {
-                            initHandlerChain(e.nextElement(), handlerRegistry, handlerInfo, soaproles);
-                        }
+                        while(e.hasMoreElements())
+                            initHandlerChain(e.nextElement(), handlerRegistry,
+                                    handlerInfo, soaproles);
                     }
                 }
             }
@@ -321,7 +323,7 @@ public class ServiceRefFactory implements ObjectFactory {
      */
     private String getSOAPLocation(Port port) {
         String endpoint = null;
-        @SuppressWarnings("unchecked") // Can't change the API
+        @SuppressWarnings("unchecked")
         List<ExtensibilityElement> extensions = port.getExtensibilityElements();
         for (ExtensibilityElement ext : extensions) {
             if (ext instanceof SOAPAddress) {
@@ -336,7 +338,7 @@ public class ServiceRefFactory implements ObjectFactory {
     private void initHandlerChain(QName portName, HandlerRegistry handlerRegistry,
             HandlerInfo handlerInfo, List<String> soaprolesToAdd) {
         HandlerChain handlerChain = (HandlerChain) handlerRegistry.getHandlerChain(portName);
-        @SuppressWarnings("unchecked") // Can't change the API
+        @SuppressWarnings("unchecked")
         Iterator<Handler> iter = handlerChain.iterator();
         while (iter.hasNext()) {
             Handler handler = iter.next();
@@ -345,12 +347,10 @@ public class ServiceRefFactory implements ObjectFactory {
         String[] soaprolesRegistered = handlerChain.getRoles();
         String [] soaproles = new String[soaprolesRegistered.length + soaprolesToAdd.size()];
         int i;
-        for (i = 0;i < soaprolesRegistered.length; i++) {
+        for (i = 0;i < soaprolesRegistered.length; i++)
             soaproles[i] = soaprolesRegistered[i];
-        }
-        for (int j = 0; j < soaprolesToAdd.size(); j++) {
+        for (int j = 0; j < soaprolesToAdd.size(); j++)
             soaproles[i+j] = soaprolesToAdd.get(j);
-        }
         handlerChain.setRoles(soaproles);
         handlerRegistry.setHandlerChain(portName, handlerChain);
     }

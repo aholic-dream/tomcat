@@ -293,7 +293,8 @@ public abstract class LifecycleBase implements Lifecycle {
                 stop();
             } catch (LifecycleException e) {
                 // Just log. Still want to destroy.
-                log.error(sm.getString("lifecycleBase.destroyStopFail", toString()), e);
+                log.warn(sm.getString(
+                        "lifecycleBase.destroyStopFail", toString()), e);
             }
         }
 
@@ -432,8 +433,8 @@ public abstract class LifecycleBase implements Lifecycle {
 
 
     private void handleSubClassException(Throwable t, String key, Object... args) throws LifecycleException {
-        setStateInternal(LifecycleState.FAILED, null, false);
         ExceptionUtils.handleThrowable(t);
+        setStateInternal(LifecycleState.FAILED, null, false);
         String msg = sm.getString(key, args);
         if (getThrowOnFailure()) {
             if (!(t instanceof LifecycleException)) {

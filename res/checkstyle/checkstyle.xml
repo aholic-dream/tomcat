@@ -78,14 +78,7 @@
     <module name="RedundantImport"/>
     <module name="UnusedImports"/>
 
-    <!-- Miscellaneous -->
-    <!-- ~5000 errors
-    <module name="Indentation">
-        <property name="lineWrappingIndentation" value="8"/>
-    </module>
-    -->
-
-    <!-- Modifiers -->
+    <!--  Modifiers -->
     <module name="ModifierOrder"/>
     <!-- ~1750 errors
     <module name="RedundantModifier"/>

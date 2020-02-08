@@ -25,13 +25,11 @@ import java.util.HashSet;
 
 import javax.management.ObjectName;
 
-import org.apache.catalina.Globals;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Service;
 import org.apache.catalina.core.AprLifecycleListener;
 import org.apache.catalina.util.LifecycleMBeanBase;
-import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.Adapter;
 import org.apache.coyote.ProtocolHandler;
 import org.apache.coyote.UpgradeProtocol;
@@ -148,6 +146,12 @@ public class Connector extends LifecycleMBeanBase  {
 
 
     /**
+     * The port number on which we listen for requests.
+     */
+    protected int port = -1;
+
+
+    /**
      * The server name to which we should pretend requests to this Connector
      * were directed.  This is useful when operating Tomcat behind a proxy
      * server, so that redirects get constructed accurately.  If not specified,
@@ -163,16 +167,6 @@ public class Connector extends LifecycleMBeanBase  {
      * the port number specified by the <code>port</code> property is used.
      */
     protected int proxyPort = 0;
-
-
-    /**
-     * The flag that controls recycling of the facades of the request
-     * processing objects. If set to <code>true</code> the object facades
-     * will be discarded when the request is recycled. If the security
-     * manager is enabled, this setting is ignored and object facades are
-     * always discarded.
-     */
-    protected boolean discardFacades = RECYCLE_FACADES;
 
 
     /**
@@ -384,25 +378,6 @@ public class Connector extends LifecycleMBeanBase  {
 
 
     /**
-     * @return <code>true</code> if the object facades are discarded, either
-     *   when the discardFacades value is <code>true</code> or when the
-     *   security manager is enabled.
-     */
-    public boolean getDiscardFacades() {
-        return discardFacades || Globals.IS_SECURITY_ENABLED;
-    }
-
-
-    /**
-     * Set the recycling strategy for the object facades.
-     * @param discardFacades the new value of the flag
-     */
-    public void setDiscardFacades(boolean discardFacades) {
-        this.discardFacades = discardFacades;
-    }
-
-
-    /**
      * @return the "enable DNS lookups" flag.
      */
     public boolean getEnableLookups() {
@@ -541,18 +516,7 @@ public class Connector extends LifecycleMBeanBase  {
      * when the socket is bound.
      */
     public int getPort() {
-        // Try shortcut that should work for nearly all uses first as it does
-        // not use reflection and is therefore faster.
-        if (protocolHandler instanceof AbstractProtocol<?>) {
-            return ((AbstractProtocol<?>) protocolHandler).getPort();
-        }
-        // Fall back for custom protocol handlers not based on AbstractProtocol
-        Object port = getProperty("port");
-        if (port instanceof Integer) {
-            return ((Integer) port).intValue();
-        }
-        // Usually means an invalid protocol has been configured
-        return -1;
+        return this.port;
     }
 
 
@@ -562,38 +526,8 @@ public class Connector extends LifecycleMBeanBase  {
      * @param port The new port number
      */
     public void setPort(int port) {
+        this.port = port;
         setProperty("port", String.valueOf(port));
-    }
-
-
-    public int getPortOffset() {
-        // Try shortcut that should work for nearly all uses first as it does
-        // not use reflection and is therefore faster.
-        if (protocolHandler instanceof AbstractProtocol<?>) {
-            return ((AbstractProtocol<?>) protocolHandler).getPortOffset();
-        }
-        // Fall back for custom protocol handlers not based on AbstractProtocol
-        Object port = getProperty("portOffset");
-        if (port instanceof Integer) {
-            return ((Integer) port).intValue();
-        }
-        // Usually means an invalid protocol has been configured.
-        return 0;
-    }
-
-
-    public void setPortOffset(int portOffset) {
-        setProperty("portOffset", String.valueOf(portOffset));
-    }
-
-
-    public int getPortWithOffset() {
-        int port = getPort();
-        // Zero is a special case and negative values are invalid
-        if (port > 0) {
-            return port + getPortOffset();
-        }
-        return port;
     }
 
 
@@ -706,11 +640,6 @@ public class Connector extends LifecycleMBeanBase  {
     }
 
 
-    public int getRedirectPortWithOffset() {
-        return getRedirectPort() + getPortOffset();
-    }
-
-
     /**
      * @return the scheme that will be assigned to requests received
      * through this connector.  Default value is "http".
@@ -779,7 +708,7 @@ public class Connector extends LifecycleMBeanBase  {
         try {
             uriCharset = B2CConverter.getCharset(URIEncoding);
         } catch (UnsupportedEncodingException e) {
-            log.error(sm.getString("coyoteConnector.invalidEncoding",
+            log.warn(sm.getString("coyoteConnector.invalidEncoding",
                     URIEncoding, uriCharset.name()), e);
         }
     }
@@ -916,7 +845,7 @@ public class Connector extends LifecycleMBeanBase  {
         StringBuilder sb = new StringBuilder("type=");
         sb.append(type);
         sb.append(",port=");
-        int port = getPortWithOffset();
+        int port = getPort();
         if (port > 0) {
             sb.append(port);
         } else {
@@ -978,21 +907,14 @@ public class Connector extends LifecycleMBeanBase  {
         // Initialize adapter
         adapter = new CoyoteAdapter(this);
         protocolHandler.setAdapter(adapter);
-        if (service != null) {
-            protocolHandler.setUtilityExecutor(service.getServer().getUtilityExecutor());
-        }
 
         // Make sure parseBodyMethodsSet has a default
         if (null == parseBodyMethodsSet) {
             setParseBodyMethods(getParseBodyMethods());
         }
 
-        if (protocolHandler.isAprRequired() && !AprLifecycleListener.isInstanceCreated()) {
-            throw new LifecycleException(sm.getString("coyoteConnector.protocolHandlerNoAprListener",
-                    getProtocolHandlerClassName()));
-        }
         if (protocolHandler.isAprRequired() && !AprLifecycleListener.isAprAvailable()) {
-            throw new LifecycleException(sm.getString("coyoteConnector.protocolHandlerNoAprLibrary",
+            throw new LifecycleException(sm.getString("coyoteConnector.protocolHandlerNoApr",
                     getProtocolHandlerClassName()));
         }
         if (AprLifecycleListener.isAprAvailable() && AprLifecycleListener.getUseOpenSSL() &&
@@ -1024,9 +946,9 @@ public class Connector extends LifecycleMBeanBase  {
     protected void startInternal() throws LifecycleException {
 
         // Validate settings before starting
-        if (getPortWithOffset() < 0) {
+        if (getPort() < 0) {
             throw new LifecycleException(sm.getString(
-                    "coyoteConnector.invalidPort", Integer.valueOf(getPortWithOffset())));
+                    "coyoteConnector.invalidPort", Integer.valueOf(getPort())));
         }
 
         setState(LifecycleState.STARTING);
@@ -1090,7 +1012,7 @@ public class Connector extends LifecycleMBeanBase  {
         StringBuilder sb = new StringBuilder("Connector[");
         sb.append(getProtocol());
         sb.append('-');
-        int port = getPortWithOffset();
+        int port = getPort();
         if (port > 0) {
             sb.append(port);
         } else {

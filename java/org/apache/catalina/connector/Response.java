@@ -34,6 +34,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Vector;
 import java.util.function.Supplier;
 
 import javax.servlet.ServletOutputStream;
@@ -44,6 +45,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.Globals;
 import org.apache.catalina.Session;
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.catalina.util.SessionConfig;
@@ -228,7 +230,7 @@ public class Response implements HttpServletResponse {
         isCharacterEncodingSet = false;
 
         applicationResponse = null;
-        if (getRequest().getDiscardFacades()) {
+        if (Globals.IS_SECURITY_ENABLED || Connector.RECYCLE_FACADES) {
             if (facade != null) {
                 facade.clear();
                 facade = null;
@@ -865,6 +867,7 @@ public class Response implements HttpServletResponse {
 
     @Override
     public Collection<String> getHeaderNames() {
+
         MimeHeaders headers = getCoyoteResponse().getMimeHeaders();
         int n = headers.size();
         List<String> result = new ArrayList<>(n);
@@ -878,11 +881,12 @@ public class Response implements HttpServletResponse {
 
     @Override
     public Collection<String> getHeaders(String name) {
+
         Enumeration<String> enumeration =
                 getCoyoteResponse().getMimeHeaders().values(name);
-        List<String> result = new ArrayList<>();
+        Vector<String> result = new Vector<>();
         while (enumeration.hasMoreElements()) {
-            result.add(enumeration.nextElement());
+            result.addElement(enumeration.nextElement());
         }
         return result;
     }
@@ -1392,9 +1396,8 @@ public class Response implements HttpServletResponse {
 
         char cc=name.charAt(0);
         if (cc=='C' || cc=='c') {
-            if (checkSpecialHeader(name, value)) {
+            if (checkSpecialHeader(name, value))
                 return;
-            }
         }
 
         getCoyoteResponse().setHeader(name, value);

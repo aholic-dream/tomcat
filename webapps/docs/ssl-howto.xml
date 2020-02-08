@@ -25,7 +25,7 @@
     <properties>
         <author email="ccain@apache.org">Christopher Cain</author>
         <author email="yoavs@apache.org">Yoav Shapira</author>
-        <title>SSL/TLS Configuration How-To</title>
+        <title>SSL/TLS Configuration HOW-TO</title>
     </properties>
 
 <body>
@@ -43,7 +43,7 @@
     the directory into which you have installed Tomcat.</em></p>
 
 <p>To install and configure SSL/TLS support on Tomcat, you need to follow
-these simple steps.  For more information, read the rest of this How-To.</p>
+these simple steps.  For more information, read the rest of this HOW-TO.</p>
 <ol>
 <li><p>Create a keystore file to store the server&apos;s private key and
 self-signed certificate by executing the following command:</p>
@@ -101,24 +101,6 @@ Tomcat knows that communications between the primary web server and the
 client are taking place over a secure connection (because your application
 needs to be able to ask about this), but it does not participate in the
 encryption or decryption itself.</p>
-
-<p>Tomcat is able to use any of the the cryptographic protocols that are
-provided by the underlying environment. Java itself provides cryptographic
-capabilities through <a href="https://docs.oracle.com/javase/9/security/java-cryptography-architecture-jca-reference-guide.htm">JCE/JCA</a>
-and encrypted communications capabilities through <a href="https://docs.oracle.com/javase/9/security/java-secure-socket-extension-jsse-reference-guide.htm">JSSE</a>.
-Any compliant cryptographic "provider" can provide cryptographic algorithms
-to Tomcat. The built-in provider (SunJCE) includes support for various
-SSL/TLS versions like SSLv3, TLSv1, TLSv1.1, and so on. Check the documentation
-for your version of Java for details on protocol and algorithm support.</p>
-
-<p>If you use the optional <code>tcnative</code> library, you can use
-the <a href="https://www.openssl.org/">OpenSSL</a> cryptographic provider
-through JCA/JCE/JSSE which may provide a different selection of cryptographic
-algorithms and/or performance benefits relative to the SunJCE provider.
-You can also use <code>tcnative</code> to enable the <a href="apr.html">APR</a>
-connector which uses OpenSSL for its cryptographic operations. Check the
-documentation for your version of OpenSSL for details on protocol and
-algorithm support.</p>
 
 </section>
 
@@ -277,12 +259,12 @@ in the <b>protocol</b> attribute of the <a href="config/http.html">Connector</a>
 
 <p>To define a Java (JSSE) connector, regardless of whether the APR library is
 loaded or not, use one of the following:</p>
-<source><![CDATA[<!-- Define an HTTP/1.1 Connector on port 8443, JSSE NIO implementation -->
+<source><![CDATA[<!-- Define a HTTP/1.1 Connector on port 8443, JSSE NIO implementation -->
 <Connector protocol="org.apache.coyote.http11.Http11NioProtocol"
            sslImplementationName="org.apache.tomcat.util.net.jsse.JSSEImplementation"
            port="8443" .../>
 
-<!-- Define an HTTP/1.1 Connector on port 8443, JSSE NIO2 implementation -->
+<!-- Define a HTTP/1.1 Connector on port 8443, JSSE NIO2 implementation -->
 <Connector protocol="org.apache.coyote.http11.Http11Nio2Protocol"
            sslImplementationName="org.apache.tomcat.util.net.jsse.JSSEImplementation"
            port="8443" .../>]]></source>
@@ -293,13 +275,13 @@ allows enabling it. When using the OpenSSL JSSE implementation, the configuratio
 either the JSSE attributes or
 the OpenSSL attributes (as used for the APR connector), but must not mix attributes from
 both types in the same SSLHostConfig or Connector element.</p>
-<source><![CDATA[<!-- Define an HTTP/1.1 Connector on port 8443, JSSE NIO implementation and OpenSSL -->
+<source><![CDATA[<!-- Define a HTTP/1.1 Connector on port 8443, JSSE NIO implementation and OpenSSL -->
 <Connector protocol="org.apache.coyote.http11.Http11NioProtocol" port="8443"
            sslImplementationName="org.apache.tomcat.util.net.openssl.OpenSSLImplementation"
            .../>]]></source>
 
 <p>Alternatively, to specify an APR connector (the APR library must be available) use:</p>
-<source><![CDATA[<!-- Define an HTTP/1.1 Connector on port 8443, APR implementation -->
+<source><![CDATA[<!-- Define a HTTP/1.1 Connector on port 8443, APR implementation -->
 <Connector protocol="org.apache.coyote.http11.Http11AprProtocol"
            port="8443" .../>]]></source>
 
@@ -333,7 +315,7 @@ for an SSL connector is included in the default <code>server.xml</code>
 file installed with Tomcat. To configure an SSL connector that uses JSSE, you
 will need to remove the comments and edit it so it looks something like
 this:</p>
-<source><![CDATA[<!-- Define an SSL Coyote HTTP/1.1 Connector on port 8443 -->
+<source><![CDATA[<!-- Define a SSL Coyote HTTP/1.1 Connector on port 8443 -->
 <Connector
            protocol="org.apache.coyote.http11.Http11NioProtocol"
            port="8443" maxThreads="200"
@@ -347,7 +329,7 @@ this:</p>
 <p>
   The APR connector uses different attributes for many SSL settings,
   particularly keys and certificates. An example of an APR configuration is:</p>
-<source><![CDATA[<!-- Define an SSL Coyote HTTP/1.1 Connector on port 8443 -->
+<source><![CDATA[<!-- Define a SSL Coyote HTTP/1.1 Connector on port 8443 -->
 <Connector
            protocol="org.apache.coyote.http11.Http11AprProtocol"
            port="8443" maxThreads="200"

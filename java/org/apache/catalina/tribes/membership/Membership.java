@@ -343,7 +343,8 @@ public class Membership implements Cloneable {
          *         <code>false</code>
          */
         public boolean hasExpired(long maxtime) {
-            return !mbr.isLocal() && (System.currentTimeMillis() - lastHeardFrom) > maxtime;
+            long delta = System.currentTimeMillis() - lastHeardFrom;
+            return delta > maxtime;
         }
     }
 }

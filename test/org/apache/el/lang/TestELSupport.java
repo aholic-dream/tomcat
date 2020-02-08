@@ -264,15 +264,15 @@ public class TestELSupport {
         Assert.assertEquals(value, ELSupport.coerceToNumber(null, value, value.getClass()));
     }
 
-    private enum TestEnumA {
+    private static enum TestEnumA {
         VALA1,
         VALA2
     }
-    private enum TestEnumB {
+    private static enum TestEnumB {
         VALB1,
         VALB2
     }
-    private enum TestEnumC {
+    private static enum TestEnumC {
         VALA1,
         VALA2,
         VALB1,

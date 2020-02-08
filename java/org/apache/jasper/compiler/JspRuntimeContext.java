@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.jasper.compiler;
 
 import java.io.File;
@@ -388,7 +389,8 @@ public final class JspRuntimeContext {
                     ctxt.incrementRemoved();
                 } catch (Throwable t) {
                     ExceptionUtils.handleThrowable(t);
-                    jsw.getServletContext().log(Localizer.getMessage("jsp.error.backgroundCompilationFailed"), t);
+                    jsw.getServletContext().log("Background compile failed",
+                                                t);
                 }
             }
         }
@@ -411,7 +413,7 @@ public final class JspRuntimeContext {
                     jsw.getServlet();
                 }
             } catch (ServletException e) {
-                jsw.getServletContext().log(Localizer.getMessage("jsp.error.reload"), e);
+                jsw.getServletContext().log("Servlet reload failed", e);
             }
         }
     }
@@ -555,8 +557,8 @@ public final class JspRuntimeContext {
                 // Allow the JSP to access org.apache.jasper.runtime.HttpJspBase
                 permissions.add( new RuntimePermission(
                     "accessClassInPackage.org.apache.jasper.runtime") );
-            } catch (RuntimeException | IOException e) {
-                context.log(Localizer.getMessage("jsp.error.security"), e);
+            } catch(RuntimeException | IOException e) {
+                context.log("Security Init for context failed",e);
             }
         }
         return new SecurityHolder(source, permissions);

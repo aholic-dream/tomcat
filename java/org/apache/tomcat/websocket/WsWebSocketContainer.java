@@ -72,7 +72,6 @@ import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.apache.tomcat.util.collections.CaseInsensitiveKeyMap;
 import org.apache.tomcat.util.res.StringManager;
-import org.apache.tomcat.util.security.KeyStoreUtil;
 import org.apache.tomcat.websocket.pojo.PojoEndpointClient;
 
 public class WsWebSocketContainer implements WebSocketContainer, BackgroundProcess {
@@ -90,9 +89,8 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     private final Object asynchronousChannelGroupLock = new Object();
 
     private final Log log = LogFactory.getLog(WsWebSocketContainer.class); // must not be static
-    // Server side uses the endpoint path as the key
-    // Client side uses the client endpoint instance
-    private final Map<Object, Set<WsSession>> endpointSessionMap = new HashMap<>();
+    private final Map<Endpoint, Set<WsSession>> endpointSessionMap =
+            new HashMap<>();
     private final Map<WsSession,WsSession> sessions = new ConcurrentHashMap<>();
     private final Object endPointSessionMapLock = new Object();
 
@@ -265,7 +263,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         }
 
         // Create the initial HTTP request to open the WebSocket connection
-        Map<String, List<String>> reqHeaders = createRequestHeaders(host, port, secure,
+        Map<String, List<String>> reqHeaders = createRequestHeaders(host, port,
                 clientEndpointConfiguration);
         clientEndpointConfiguration.getConfigurator().beforeRequest(reqHeaders);
         if (Constants.DEFAULT_ORIGIN_HEADER_VALUE != null
@@ -580,7 +578,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         return ByteBuffer.wrap(bytes);
     }
 
-    protected void registerSession(Object key, WsSession wsSession) {
+    protected void registerSession(Endpoint endpoint, WsSession wsSession) {
 
         if (!wsSession.isOpen()) {
             // The session was closed during onOpen. No need to register it.
@@ -590,10 +588,10 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             if (endpointSessionMap.size() == 0) {
                 BackgroundProcessManager.getInstance().register(this);
             }
-            Set<WsSession> wsSessions = endpointSessionMap.get(key);
+            Set<WsSession> wsSessions = endpointSessionMap.get(endpoint);
             if (wsSessions == null) {
                 wsSessions = new HashSet<>();
-                endpointSessionMap.put(key, wsSessions);
+                endpointSessionMap.put(endpoint, wsSessions);
             }
             wsSessions.add(wsSession);
         }
@@ -601,14 +599,14 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     }
 
 
-    protected void unregisterSession(Object key, WsSession wsSession) {
+    protected void unregisterSession(Endpoint endpoint, WsSession wsSession) {
 
         synchronized (endPointSessionMapLock) {
-            Set<WsSession> wsSessions = endpointSessionMap.get(key);
+            Set<WsSession> wsSessions = endpointSessionMap.get(endpoint);
             if (wsSessions != null) {
                 wsSessions.remove(wsSession);
                 if (wsSessions.size() == 0) {
-                    endpointSessionMap.remove(key);
+                    endpointSessionMap.remove(endpoint);
                 }
             }
             if (endpointSessionMap.size() == 0) {
@@ -619,10 +617,10 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     }
 
 
-    Set<Session> getOpenSessions(Object key) {
+    Set<Session> getOpenSessions(Endpoint endpoint) {
         HashSet<Session> result = new HashSet<>();
         synchronized (endPointSessionMapLock) {
-            Set<WsSession> sessions = endpointSessionMap.get(key);
+            Set<WsSession> sessions = endpointSessionMap.get(endpoint);
             if (sessions != null) {
                 result.addAll(sessions);
             }
@@ -631,7 +629,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     }
 
     private static Map<String, List<String>> createRequestHeaders(String host, int port,
-            boolean secure, ClientEndpointConfig clientEndpointConfiguration) {
+            ClientEndpointConfig clientEndpointConfiguration) {
 
         Map<String, List<String>> headers = new HashMap<>();
         List<Extension> extensions = clientEndpointConfiguration.getExtensions();
@@ -646,8 +644,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
         // Host header
         List<String> hostValues = new ArrayList<>(1);
-        if (port == 80 && !secure || port == 443 && secure) {
-            // Default ports. Do not include port in host header
+        if (port == -1) {
             hostValues.add(host);
         } else {
             hostValues.add(host + ':' + port);
@@ -914,7 +911,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
                     File keyStoreFile = new File(sslTrustStoreValue);
                     KeyStore ks = KeyStore.getInstance("JKS");
                     try (InputStream is = new FileInputStream(keyStoreFile)) {
-                        KeyStoreUtil.load(ks, is, sslTrustStorePwdValue.toCharArray());
+                        ks.load(is, sslTrustStorePwdValue.toCharArray());
                     }
 
                     TrustManagerFactory tmf = TrustManagerFactory.getInstance(

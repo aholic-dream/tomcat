@@ -95,15 +95,6 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     // ------------------------------------------------ HTTP specific properties
     // ------------------------------------------ managed in the ProtocolHandler
 
-    private boolean useKeepAliveResponseHeader = true;
-    public boolean getUseKeepAliveResponseHeader() {
-        return useKeepAliveResponseHeader;
-    }
-    public void setUseKeepAliveResponseHeader(boolean useKeepAliveResponseHeader) {
-        this.useKeepAliveResponseHeader = useKeepAliveResponseHeader;
-    }
-
-
     private String relaxedPathChars = null;
     public String getRelaxedPathChars() {
         return relaxedPathChars;
@@ -145,56 +136,27 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
-    private boolean rejectIllegalHeader = true;
+    private boolean rejectIllegalHeaderName = true;
     /**
-     * If an HTTP request is received that contains an illegal header name or
-     * value (e.g. the header name is not a token) will the request be rejected
-     * (with a 400 response) or will the illegal header be ignored?
+     * If an HTTP request is received that contains an illegal header name (i.e.
+     * the header name is not a token) will the request be rejected (with a 400
+     * response) or will the illegal header be ignored.
      *
      * @return {@code true} if the request will be rejected or {@code false} if
      *         the header will be ignored
      */
-    public boolean getRejectIllegalHeader() { return rejectIllegalHeader; }
+    public boolean getRejectIllegalHeaderName() { return rejectIllegalHeaderName; }
     /**
-     * If an HTTP request is received that contains an illegal header name or
-     * value (e.g. the header name is not a token) should the request be
-     * rejected (with a 400 response) or should the illegal header be ignored?
-     *
-     * @param rejectIllegalHeader   {@code true} to reject requests with illegal
-     *                              header names or values, {@code false} to
-     *                              ignore the header
-     */
-    public void setRejectIllegalHeader(boolean rejectIllegalHeader) {
-        this.rejectIllegalHeader = rejectIllegalHeader;
-    }
-    /**
-     * If an HTTP request is received that contains an illegal header name or
-     * value (e.g. the header name is not a token) will the request be rejected
-     * (with a 400 response) or will the illegal header be ignored?
-     *
-     * @return {@code true} if the request will be rejected or {@code false} if
-     *         the header will be ignored
-     *
-     * @deprecated Now an alias for {@link #getRejectIllegalHeader()}. Will be
-     *             removed in Tomcat 10 onwards.
-     */
-    @Deprecated
-    public boolean getRejectIllegalHeaderName() { return rejectIllegalHeader; }
-    /**
-     * If an HTTP request is received that contains an illegal header name or
-     * value (e.g. the header name is not a token) should the request be
-     * rejected (with a 400 response) or should the illegal header be ignored?
+     * If an HTTP request is received that contains an illegal header name (i.e.
+     * the header name is not a token) should the request be rejected (with a
+     * 400 response) or should the illegal header be ignored.
      *
      * @param rejectIllegalHeaderName   {@code true} to reject requests with
-     *                                  illegal header names or values,
-     *                                  {@code false} to ignore the header
-     *
-     * @deprecated Now an alias for {@link #setRejectIllegalHeader(boolean)}.
-     *             Will be removed in Tomcat 10 onwards.
+     *                                  illegal header names, {@code false} to
+     *                                  ignore the header
      */
-    @Deprecated
     public void setRejectIllegalHeaderName(boolean rejectIllegalHeaderName) {
-        this.rejectIllegalHeader = rejectIllegalHeaderName;
+        this.rejectIllegalHeaderName = rejectIllegalHeaderName;
     }
 
 
@@ -305,16 +267,6 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
     public void setCompressionMinSize(int compressionMinSize) {
         compressionConfig.setCompressionMinSize(compressionMinSize);
-    }
-
-
-    @Deprecated
-    public boolean getNoCompressionStrongETag() {
-        return compressionConfig.getNoCompressionStrongETag();
-    }
-    @Deprecated
-    public void setNoCompressionStrongETag(boolean noCompressionStrongETag) {
-        compressionConfig.setNoCompressionStrongETag(noCompressionStrongETag);
     }
 
 
@@ -527,8 +479,6 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
                 }
             }
         }
-
-        upgradeProtocol.setHttp11Protocol(this);
     }
     @Override
     public UpgradeProtocol getNegotiatedProtocol(String negotiatedName) {
@@ -697,7 +647,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     public String getClientAuth() {
         registerDefaultSSLHostConfig();
-        return defaultSSLHostConfig.getCertificateVerificationAsString();
+        return defaultSSLHostConfig.getCertificateVerification().toString();
     }
     public void setClientAuth(String certificateVerification) {
         registerDefaultSSLHostConfig();
@@ -707,7 +657,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     public String getSSLVerifyClient() {
         registerDefaultSSLHostConfig();
-        return defaultSSLHostConfig.getCertificateVerificationAsString();
+        return defaultSSLHostConfig.getCertificateVerification().toString();
     }
     public void setSSLVerifyClient(String certificateVerification) {
         registerDefaultSSLHostConfig();

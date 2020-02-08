@@ -22,7 +22,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
@@ -36,10 +35,10 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.connector.Request;
+import org.apache.coyote.Constants;
 import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.UDecoder;
 import org.apache.tomcat.util.http.RequestUtil;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * An implementation of SSIExternalResolver that is used with servlets.
@@ -48,7 +47,6 @@ import org.apache.tomcat.util.res.StringManager;
  * @author David Becker
  */
 public class SSIServletExternalResolver implements SSIExternalResolver {
-    private static final StringManager sm = StringManager.getManager(SSIServletExternalResolver.class);
     protected final String VARIABLE_NAMES[] = {"AUTH_TYPE", "CONTENT_LENGTH",
             "CONTENT_TYPE", "DOCUMENT_NAME", "DOCUMENT_URI",
             "GATEWAY_INTERFACE", "HTTP_ACCEPT", "HTTP_ACCEPT_ENCODING",
@@ -273,7 +271,7 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
                             queryStringCharset = uriCharset;
                         } else {
                             // Use default as a last resort
-                            queryStringCharset = StandardCharsets.UTF_8;
+                            queryStringCharset = Constants.DEFAULT_URI_CHARSET;
                         }
 
                         retVal = UDecoder.URLDecode(queryString, queryStringCharset);
@@ -376,12 +374,14 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
         String pathWithoutContext = SSIServletRequestUtil.getRelativePath(req);
         String prefix = getPathWithoutFileName(pathWithoutContext);
         if (prefix == null) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.removeFilenameError", pathWithoutContext));
+            throw new IOException("Couldn't remove filename from path: "
+                    + pathWithoutContext);
         }
         String fullPath = prefix + path;
         String retVal = RequestUtil.normalize(fullPath);
         if (retVal == null) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.normalizationError", fullPath));
+            throw new IOException("Normalization yielded null on path: "
+                    + fullPath);
         }
         return retVal;
     }
@@ -390,10 +390,12 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
     protected ServletContextAndPath getServletContextAndPathFromNonVirtualPath(
             String nonVirtualPath) throws IOException {
         if (nonVirtualPath.startsWith("/") || nonVirtualPath.startsWith("\\")) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.absoluteNonVirtualPath", nonVirtualPath));
+            throw new IOException("A non-virtual path can't be absolute: "
+                    + nonVirtualPath);
         }
         if (nonVirtualPath.contains("../")) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.pathTraversalNonVirtualPath", nonVirtualPath));
+            throw new IOException("A non-virtual path can't contain '../' : "
+                    + nonVirtualPath);
         }
         String path = getAbsolutePath(nonVirtualPath);
         ServletContextAndPath csAndP = new ServletContextAndPath(
@@ -417,7 +419,8 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
 
         ServletContext normContext = context.getContext(normalized);
         if (normContext == null) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.noContext", normalized));
+            throw new IOException("Couldn't get context for path: "
+                    + normalized);
         }
         //If it's the root context, then there is no context element
         // to remove,
@@ -469,7 +472,7 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
         String path = csAndP.getPath();
         URL url = context.getResource(path);
         if (url == null) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.noResource", path));
+            throw new IOException("Context did not contain resource: " + path);
         }
         URLConnection urlConnection = url.openConnection();
         return urlConnection;
@@ -516,7 +519,8 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
             String path = csAndP.getPath();
             RequestDispatcher rd = context.getRequestDispatcher(path);
             if (rd == null) {
-                throw new IOException(sm.getString("ssiServletExternalResolver.requestDispatcherError", path));
+                throw new IOException(
+                        "Couldn't get request dispatcher for path: " + path);
             }
             ByteArrayServletOutputStream basos = new ByteArrayServletOutputStream();
             ResponseIncludeWrapper responseIncludeWrapper = new ResponseIncludeWrapper(res, basos);
@@ -539,11 +543,12 @@ public class SSIServletExternalResolver implements SSIExternalResolver {
             // if a truly empty file
             //were included, but not sure how else to tell.
             if (retVal.equals("") && !req.getMethod().equalsIgnoreCase("HEAD")) {
-                throw new IOException(sm.getString("ssiServletExternalResolver.noFile", path));
+                throw new IOException("Couldn't find file: " + path);
             }
             return retVal;
         } catch (ServletException e) {
-            throw new IOException(sm.getString("ssiServletExternalResolver.noIncludeFile", originalPath), e);
+            throw new IOException("Couldn't include file: " + originalPath
+                    + " because of ServletException: " + e.getMessage());
         }
     }
 

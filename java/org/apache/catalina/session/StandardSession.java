@@ -1413,11 +1413,10 @@ public class StandardSession implements HttpSession, Session, Serializable {
             throw new IllegalStateException(
                     sm.getString("standardSession.setAttribute.ise", getIdInternal()));
         }
-
-        Context context = manager.getContext();
-
-        if (context.getDistributable() && !isAttributeDistributable(name, value) && !exclude(name, value)) {
-            throw new IllegalArgumentException(sm.getString("standardSession.setAttribute.iae", name));
+        if ((manager != null) && manager.getContext().getDistributable() &&
+                !isAttributeDistributable(name, value) && !exclude(name, value)) {
+            throw new IllegalArgumentException(
+                    sm.getString("standardSession.setAttribute.iae", name));
         }
         // Construct an event with the new value
         HttpSessionBindingEvent event = null;
@@ -1462,6 +1461,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
         }
 
         // Notify interested application event listeners
+        Context context = manager.getContext();
         Object listeners[] = context.getApplicationEventListeners();
         if (listeners == null) {
             return;
@@ -1595,9 +1595,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
             if (exclude(name, value)) {
                 continue;
             }
-            // ConcurrentHashMap does not allow null keys or values
-            if(null != value)
-                attributes.put(name, value);
+            attributes.put(name, value);
         }
         isValid = isValidSave;
 

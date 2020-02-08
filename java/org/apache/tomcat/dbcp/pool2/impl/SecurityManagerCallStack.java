@@ -52,7 +52,12 @@ public class SecurityManagerCallStack implements CallStack {
     public SecurityManagerCallStack(final String messageFormat, final boolean useTimestamp) {
         this.messageFormat = messageFormat;
         this.dateFormat = useTimestamp ? new SimpleDateFormat(messageFormat) : null;
-        this.securityManager = AccessController.doPrivileged((PrivilegedAction<PrivateSecurityManager>) () -> new PrivateSecurityManager());
+        this.securityManager = AccessController.doPrivileged(new PrivilegedAction<PrivateSecurityManager>() {
+            @Override
+            public PrivateSecurityManager run() {
+                return new PrivateSecurityManager();
+            }
+        });
     }
 
     @Override
