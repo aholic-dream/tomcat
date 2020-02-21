@@ -885,7 +885,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     @Override
     protected void initInternal() throws LifecycleException {
         reconfigureStartStopExecutor(getStartStopThreadsInternal());
-        printStackInfo();
+//        printStackInfo();
         super.initInternal();
     }
 
@@ -969,7 +969,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             ((Lifecycle) pipeline).start();
         }
 
-
+        // 如果在server里面配置了Context，前面就进行了初始化，后面将继续搜索其他没有配置context的项目
         setState(LifecycleState.STARTING);
 
         // Start our thread

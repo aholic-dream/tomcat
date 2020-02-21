@@ -488,8 +488,8 @@ public final class Bootstrap {
                 daemon.stop();
             } else if (command.equals("start")) {
                 daemon.setAwait(true);
-                daemon.load(args);
-                daemon.start();
+                daemon.load(args);  // 线路1：就是init线路
+                daemon.start();     // 线路2： 就是start线路
                 if (null == daemon.getServer()) {
                     System.exit(1);
                 }
